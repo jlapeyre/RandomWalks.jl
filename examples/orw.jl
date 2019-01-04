@@ -14,21 +14,21 @@ function orw()
     walk = Walk{d,Int}()
     lattice_walk = LatticeWalk(lattice, walk)
     step_limit_actor = StepLimitActor(nsteps)
-    lattice_walk_plan = LatticeWalkPlan(lattice_walk, (step_limit_actor, ))
-    @time trial!(lattice_walk_plan, 1:ntrials, NullActor)
+    lattice_walk_plan = LatticeWalkPlan(lattice_walk, step_limit_actor)
+    @time trial!(lattice_walk_plan, 1:ntrials, NullActor())
     return lattice_walk_plan
 end
 
 # d = 2
-# nsteps = 10^8
-# ntrials = 10^0
+# nsteps = 10^7
+# ntrials = 10^1
 
 # lattice = Lattice{2}(Delta(1))
 # walk = Walk{d,Int}()
 # lattice_walk = LatticeWalk(lattice, walk)
 # step_limit_actor = StepLimitActor(nsteps)
-# lattice_walk_plan = LatticeWalkPlan(lattice_walk, (step_limit_actor, ))
+# lattice_walk_plan = LatticeWalkPlan(lattice_walk, step_limit_actor)
 
-# @time trial!(lattice_walk_plan, 1:ntrials, NullActor)
+# trial!(lattice_walk_plan, 1:ntrials, NullActor())
 
 nothing

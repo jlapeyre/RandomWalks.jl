@@ -25,21 +25,21 @@ include("actors_test.jl")
     step_limit_actor = StepLimitActor(10^4)
     storing_actor = storing_nsteps_position_actor(times)
 
-    cbs = callbacks(step_limit_actor, storing_actor)
-    walk!(latwalk, cbs)
-    @test  typeof(get_values(storing_actor)) == Tuple{Vector{Int64}, Vector{Float64}}
+    actors = ActorSet(step_limit_actor, storing_actor)
+    walk!(latwalk, actors)
+    @test  typeof(Actors.get_values(storing_actor)) == Tuple{Vector{Int64}, Vector{Float64}}
 
     storing_actor = storing_nsteps_actor(times)
-    cbs = callbacks(step_limit_actor, storing_actor)
-    walk!(latwalk, cbs)
-    @test  typeof(get_values(storing_actor)) == Tuple{Vector{Int64}}
+    actors = ActorSet(step_limit_actor, storing_actor)
+    walk!(latwalk, actors)
+    @test  typeof(Actors.get_values(storing_actor)) == Tuple{Vector{Int64}}
 
     storing_actor = storing_position_actor(times)
-    cbs = callbacks(step_limit_actor, storing_actor)
-    walk!(latwalk, cbs)
-    @test  typeof(get_values(storing_actor)) == Vector{Float64}
+    actors = ActorSet(step_limit_actor, storing_actor)
+    walk!(latwalk, actors)
+    @test  typeof(Actors.get_values(storing_actor)) == Vector{Float64}
 
-    lwp = LatticeWalkPlan(latwalk, (step_limit_actor, storing_actor, NullActor()))
+    lwp = LatticeWalkPlan(latwalk, ActorSet(step_limit_actor, storing_actor, NullActor()))
     walk!(lwp)
-    @test  typeof(get_values(storing_actor)) == Vector{Float64}
+    @test  typeof(Actors.get_values(storing_actor)) == Vector{Float64}
 end

@@ -10,6 +10,8 @@ export AbstractTrialCallback
 export get_position, get_waiting_time, get_decay_rate, get_time, get_nsteps, step!,
     addto_time!, addto!
 
+include("utils.jl")
+
 include("Points.jl")
 using .Points
 

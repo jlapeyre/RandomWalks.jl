@@ -4,145 +4,81 @@ using ..Walks: get_nsteps, get_time, get_position
 using ..Points: get_x
 using EmpiricalCDFs
 
-export NullActor
-export SampleLoop
-export StoredValues
-export AbstractSampleCallback, SampleCallback
+export AbstractActor, AbstractSampleActor, act!, ActorSet, NullActor, StepLimitActor
+export StoringActor, storing_position_actor, storing_num_sites_visited_actor,
+    storing_nsteps_actor, storing_nsteps_position_actor
 export ECDFActor, ECDFAction, get_cdfs
-export CallbackSet
-export callbacks, get_action
-export storing_position_actor
-export storing_nsteps_actor
-export storing_nsteps_position_actor
-export logrange
-export get_times
-export StepLimitActor
-export DefaultSampleActor
-export get_values
-export StoringAction
-export StoringActor
+export SampleLoop
 
-abstract type AbstractSampleCallback end
+abstract type AbstractActor end
 
-###
-### SampleCallback
-###
+init!(_::AbstractActor) = nothing
 
-"""
-    struct SampleCallback
-
-Callback for a "sample", i.e. a single walk. All callbacks for a single walk are instances
-of this type.
-
-`action!` stores data and functions implementing the callback.
-
-`init!` is called with no arguments at the beginning of the walk.
-
-An instance `cb::SampleCallback` is callable and is called on the
-`system::AbstractLatticeWalk` after each step.
-"""
-struct SampleCallback{F2, F3} <: AbstractSampleCallback
-    action!::F2
-    init!::F3
+abstract type AbstractSampleActor <: AbstractActor
 end
 
-init!(cb::SampleCallback) = cb.init!()
-(cb::SampleCallback)(args...) = cb.action!(args...)
-
 ###
-### CallbackSet
+### ActorSet
 ###
 
 """
-    struct SampleCallback
+    struct ActorSet
 
-Callback for a "sample", i.e. a single walk. All callbacks for a single walk are instances
-of this type.
-
-`action!` stores data and functions implementing the callback.
-
-`init!` is called with no arguments at the beginning of the walk.
+blah
 """
-struct CallbackSet{T <: Tuple} <: AbstractSampleCallback
-    callbacks::T
+struct ActorSet{T <: Tuple} <: AbstractActor
+    actors::T
 end
 
-CallbackSet(cbs::SampleCallback...) = CallbackSet((cbs...,))
+ActorSet(actors::AbstractActor...) = ActorSet((actors...,))
+ActorSet(actor::AbstractActor) = ActorSet((actor,))
 
-init!(callbacks::CallbackSet) = foreach(cb -> cb.init!(), callbacks.callbacks)
+init!(actor_set::ActorSet) = foreach(actor -> init!(actor), actor_set.actors)
 
-function (cbs::CallbackSet)(args...)
-    for cb in cbs.callbacks
-        cb(args...)::Bool || return false
+function act!(actor_set::ActorSet, args...)
+    for actor in actor_set.actors
+        act!(actor, args...)::Bool || return false
     end
     return true
-end
-
-###
-### AbstractSampleActor
-###
-
-abstract type AbstractSampleActor end
-
-macro actor(name)
-    quote
-        struct ($name){T <: AbstractSampleCallback} <: AbstractSampleActor
-            callback::T
-        end
-    end
-end
-
-callbacks(actor::AbstractSampleActor) = actor.callback
-get_action(actor::AbstractSampleActor) = callbacks(actor).action!
-
-# FIXME: semantics of callbacks methods are very different
-function callbacks(actor::AbstractSampleActor, actors::AbstractSampleActor...)
-    return CallbackSet(callbacks(actor), callbacks.(actors)...)
 end
 
 ###
 ### NullActor
 ###
 
-struct NullAction end
-(action!::NullAction)(_) = true
-@actor NullActor
-NullActor(_ = nothing)  = NullActor(SampleCallback(NullAction(), () -> nothing))
+struct NullActor <: AbstractActor
+end
+act!(_::NullActor, args...) = true
+#init!(_::NullActor) = nothing
 
 ###
 ### StepLimitActor
 ###
 
-mutable struct StepLimitAction
+mutable struct StepLimitActor <: AbstractActor
     max_step_limit::Int
     hit_max_step_limit::Bool
-    StepLimitAction(n=10) = new(n, false)
+    StepLimitActor(n=10) = new(n, false)
 end
 
-function (action!::StepLimitAction)(latwalk)
+function act!(actor::StepLimitActor, latwalk)
     nsteps = get_nsteps(latwalk)
-    if nsteps >= action!.max_step_limit
-        action!.hit_max_step_limit = true
+    if nsteps >= actor.max_step_limit
+        actor.hit_max_step_limit = true
         return false
     end
     return true
 end
 
-@actor StepLimitActor
-
-# We used a closure for init!. Is this the best way ?
-function StepLimitActor(n = 100)
-    action! = StepLimitAction(n)
-    init! = () -> action!.hit_max_step_limit = false
-    return StepLimitActor(SampleCallback(action!, init!))
+function init!(actor::StepLimitActor)
+    actor.hit_max_step_limit = false
+    return nothing
 end
 
 function Base.show(io::IO, actor::StepLimitActor)
-    print(io, "StepLimitActor(n=", get_action(actor).max_step_limit,
-          ", hit=", get_action(actor).hit_max_step_limit, ")")
+    print(io, "StepLimitActor(n=", actor.max_step_limit,
+          ", hit=", actor.hit_max_step_limit, ")")
 end
-
-DefaultSampleActor = StepLimitActor
 
 ###
 ### StoredValues
@@ -194,61 +130,51 @@ end
 ### StoringActor
 ###
 
-struct StoringAction{T, X, F}
+struct StoringActor{T, X, F} <: AbstractActor
     stored_values::StoredValues{T, X}
     storing_func::F
 end
 
-function StoringAction(times, storing_func, value_types)
-    return StoringAction(StoredValues(times; value_types=value_types), storing_func)
+function StoringActor(times, storing_func, value_types)
+    return StoringActor(StoredValues(times; value_types=value_types), storing_func)
 end
 
-function StoringAction(times, storing_func::Tuple, value_types::Tuple)
-    return StoringAction(StoredValues(times; value_types=value_types), storing_func)
+function StoringActor(times, storing_func::Tuple, value_types::Tuple)
+    return StoringActor(StoredValues(times; value_types=value_types), storing_func)
 end
 
-function (action!::StoringAction)(system)
-    get_current_index(action!.stored_values) > lastindex(action!.stored_values) && return false # terminate walk
-    while get_time(system) >= get_target_time(action!.stored_values)
-        push!(action!.stored_values.values, action!.storing_func(system))
-        increment_current_index(action!.stored_values)
-        get_current_index(action!.stored_values) > lastindex(action!.stored_values) && return false # terminate walk
+StoringActor(times, storing_func; value_types=Float64) = StoringActor(times, storing_func, value_types)
+
+function act!(actor::StoringActor, system)
+    get_current_index(actor.stored_values) > lastindex(actor.stored_values) && return false # terminate walk
+    while get_time(system) >= get_target_time(actor.stored_values)
+        push!(actor.stored_values.values, actor.storing_func(system))
+        increment_current_index(actor.stored_values)
+        get_current_index(actor.stored_values) > lastindex(actor.stored_values) && return false # terminate walk
     end
     return true
 end
 
-function (action!::StoringAction{T, <:Tuple, <:Tuple})(system) where T
-    get_current_index(action!.stored_values) > lastindex(action!.stored_values) && return false # terminate walk
-    while get_time(system) >= get_target_time(action!.stored_values)
-        for (array, func) in zip(action!.stored_values.values, action!.storing_func)
+function act!(actor::StoringActor{T, <:Tuple, <:Tuple}, system) where T
+    get_current_index(actor.stored_values) > lastindex(actor.stored_values) && return false # terminate walk
+    while get_time(system) >= get_target_time(actor.stored_values)
+        for (array, func) in zip(actor.stored_values.values, actor.storing_func)
             push!(array, func(system))
         end
-        increment_current_index(action!.stored_values)
-        get_current_index(action!.stored_values) > lastindex(action!.stored_values) && return false # terminate walk
+        increment_current_index(actor.stored_values)
+        get_current_index(actor.stored_values) > lastindex(actor.stored_values) && return false # terminate walk
     end
     return true
 end
 
-function storing_callback_init!(action!)
-    return function ()
-        reset_current_index!(action!.stored_values)
-        empty!(action!.stored_values)
-        return nothing
-    end
-end
-
-@actor StoringActor
-
-StoringActor(times, storing_func; value_types=Float64) = _StoringActor(times, storing_func, value_types)
-
-function _StoringActor(times, storing_func, value_types)
-    action! = StoringAction(times, storing_func, value_types)
-    init! = storing_callback_init!(action!)
-    return StoringActor(SampleCallback(action!, init!))
+function init!(actor::StoringActor)
+    reset_current_index!(actor.stored_values)
+    empty!(actor.stored_values)
+    return nothing
 end
 
 for f in (:get_values, :get_times)
-    @eval ($f)(sa::StoringActor) = ($f)(sa.callback.action!.stored_values)
+    @eval ($f)(sa::StoringActor) = ($f)(sa.stored_values)
 end
 
 Base.getindex(sa::StoringActor, ind1::Integer, inds...) = _getindex(sa, Val(ind1), inds...)
@@ -261,12 +187,7 @@ Base.length(sa::StoringActor) = length(get_values(sa)) + 1
 Base.size(sa::StoringActor) = (length(sa), ((length(sa[i]) for i in 1:length(sa))...,))
 
 function Base.show(io::IO, actor::StoringActor)
-    print(io, "StoringActor(", get_action(actor).stored_values, ")")
-end
-
-# FIXME: how about an easy, *performant*, lazy version ?
-function logrange(itr)
-    return collect(exp10(x) for x in itr)
+    print(io, "StoringActor(", actor.stored_values, ")")
 end
 
 ###
@@ -295,30 +216,23 @@ function storing_nsteps_position_actor(times)
     return StoringActor(times, funcs; value_types=(Int, Float64))
 end
 
-struct SampleLoop{Iter, Actors <: Tuple}
-    iter::Iter
-    actors::Actors
-end
-
-callbacks(s::SampleLoop) = callbacks(s.actors...)
-
 ###
 ### ECDFActor
 ###
 
-struct ECDFAction{T, F}
+struct ECDFActor{T, F} <: AbstractActor
     ecdfs::T
     storing_func::F
 end
 
-function (action!::ECDFAction)(_...)
-    action!.storing_func()
+function act!(actor::ECDFActor, _...)
+    actor.storing_func()
     return true
 end
 
-@actor ECDFActor
+#init!(actor::ECDFActor) = true
 
-get_cdfs(ea::ECDFActor) = callbacks(ea).action!.ecdfs
+get_cdfs(ea::ECDFActor) = ea.ecdfs
 
 function ECDFActor(sa::StoringActor)
     storage_array = sa[2] # By default, use the first data array.
@@ -330,16 +244,23 @@ function ECDFActor(sa::StoringActor)
         end
         return true
     end
-    action! = ECDFAction(ecdfs, storing_func)
-    init! = () -> true
-    return ECDFActor(SampleCallback(action!, init!))
+    return ECDFActor(ecdfs, storing_func)
 end
 
 function Base.sort!(actor::ECDFActor)
-    for cdf in actor.callback.action!.ecdfs
+    for cdf in actor.ecdfs
         sort!(cdf)
     end
     return actor
+end
+
+###
+### SampleLoop
+###
+
+struct SampleLoop{Iter, ActorT}
+    iter::Iter
+    actor::ActorT
 end
 
 end # module Actors

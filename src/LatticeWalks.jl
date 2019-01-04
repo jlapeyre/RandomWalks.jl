@@ -96,39 +96,40 @@ end
 
 struct LatticeWalkPlan{T, V}
     lattice_walk::T
-    actors::V
+    actor::V
 end
 
 function Base.show(io::IO, lp::LatticeWalkPlan)
     println(io, "LatticeWalkPlan")
     show(io, lp.lattice_walk)
-    show(io, lp.actors)
+    show(io, lp.actor)
 end
 
-walk!(lwp::LatticeWalkPlan) = walk!(lwp.lattice_walk, callbacks(lwp.actors...))
+walk!(lwp::LatticeWalkPlan) = walk!(lwp.lattice_walk, lwp.actor)
 
 for f in (:get_position, :get_time, :get_nsteps)
     @eval ($f)(lw::LatticeWalk) = ($f)(lw.walk)
     @eval ($f)(lwp::LatticeWalkPlan) = ($f)(lwp.lattice_walk)
 end
 
-function walk!(lattice_walk::AbstractLatticeWalk, sample_callback::AbstractSampleCallback = callbacks(DefaultSampleActor()))
+function walk!(lattice_walk::AbstractLatticeWalk, actor)
     init!(lattice_walk)
-    Actors.init!(sample_callback)
-    while step!(lattice_walk) && sample_callback(lattice_walk)
+    Actors.init!(actor)
+    while step!(lattice_walk) && Actors.act!(actor, lattice_walk)
     end
     return lattice_walk
 end
 
 function trial!(lattice_walk_plan::LatticeWalkPlan, sample_loop::SampleLoop)
-    trial!(lattice_walk_plan, sample_loop.iter, callbacks(sample_loop))
+    return trial!(lattice_walk_plan, sample_loop.iter, sample_loop.actor)
 end
 
-function trial!(lattice_walk_plan::LatticeWalkPlan, iter::AbstractUnitRange, trial_callbacks)
+function trial!(lattice_walk_plan::LatticeWalkPlan, iter::AbstractUnitRange, actor)
     for i in iter
         walk!(lattice_walk_plan)
-        trial_callbacks(lattice_walk_plan.lattice_walk)
+        Actors.act!(actor, lattice_walk_plan.lattice_walk)
     end
+    return nothing
 end
 
 end  # module LatticeWalks
