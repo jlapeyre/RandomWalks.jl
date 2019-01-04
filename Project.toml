@@ -1,0 +1,10 @@
+name = "RandomWalks"
+uuid = "54a2ba92-1043-11e9-35a5-95d796e28d9c"
+authors = ["John Lapeyre <jlapeyre@users.noreply.github.com>"]
+version = "0.1.0"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
