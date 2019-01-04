@@ -1,6 +1,45 @@
-using RandomWalks
+using RandomWalks, Distributions
+using RandomWalks.Points
+using RandomWalks.LatticeVars
+using RandomWalks.Lattices
+using RandomWalks.Actors
+using RandomWalks.Walks
+using RandomWalks.LatticeWalks: walk!
+
 using Test
 
-@testset "RandomWalks.jl" begin
-    # Write your own tests here.
+include("points_test.jl")
+include("actors_test.jl")
+
+@testset "RandomWalks" begin
+    walk = MortalWalk()
+
+    lattice_rates = LatticeVar{1}(Exponential(1e6))
+    waiting_times = LatticeVar{1}(Pareto(0.5))
+
+    ql = Lattice(waiting_times, lattice_rates)
+
+    latwalk = LatticeWalk(ql, walk)
+
+    times = logrange(1:.3:6)
+    step_limit_actor = StepLimitActor(10^4)
+    storing_actor = storing_nsteps_position_actor(times)
+
+    cbs = callbacks(step_limit_actor, storing_actor)
+    walk!(latwalk, cbs)
+    @test  typeof(get_values(storing_actor)) == Tuple{Vector{Int64}, Vector{Float64}}
+
+    storing_actor = storing_nsteps_actor(times)
+    cbs = callbacks(step_limit_actor, storing_actor)
+    walk!(latwalk, cbs)
+    @test  typeof(get_values(storing_actor)) == Tuple{Vector{Int64}}
+
+    storing_actor = storing_position_actor(times)
+    cbs = callbacks(step_limit_actor, storing_actor)
+    walk!(latwalk, cbs)
+    @test  typeof(get_values(storing_actor)) == Vector{Float64}
+
+    lwp = LatticeWalkPlan(latwalk, (step_limit_actor, storing_actor, NullActor()))
+    walk!(lwp)
+    @test  typeof(get_values(storing_actor)) == Vector{Float64}
 end
