@@ -1,6 +1,7 @@
 module WalksBase
 using ..Points
 
+import ..LatticeVars.init!
 using Printf: @sprintf
 
 export AbstractWalkGeneral, AbstractWalk, Walk, MortalWalk, MortalWalkStatus,
@@ -10,6 +11,7 @@ export set_decayed, unset_decayed
 
 abstract type AbstractWalkGeneral end
 
+# FIXME: rationalize AbstractWalk / Walk methods
 """
     abstract type AbstractWalk{N, Time, P}
 
@@ -17,7 +19,7 @@ abstract type AbstractWalkGeneral end
 `T`: The type of the time.
 `P`: the type representing the point.
 """
-abstract type AbstractWalk{N, Time, P} <: AbstractWalkGeneral
+abstract type AbstractWalk{N, TimeT, NStepsT, PosT} <: AbstractWalkGeneral
 end
 
 function Base.show(io::IO, w::AbstractWalk)
@@ -25,10 +27,10 @@ function Base.show(io::IO, w::AbstractWalk)
           get_position(w), ", nsteps=", get_nsteps(w), ")")
 end
 
-function init!(walk::AbstractWalk{<:Any, T, P}) where {T, P}
-    set_time!(walk, zero(T))
-    set_position!(walk, zero(P))
-    set_nsteps!(walk, 0)
+function init!(walk::AbstractWalk{<:Any, TimeT, NStepsT, PosT}) where {TimeT, NStepsT, PosT}
+    set_time!(walk, zero(TimeT))
+    set_position!(walk, zero(PosT))
+    set_nsteps!(walk, zero(NStepsT))
     return nothing
 end
 
@@ -62,32 +64,38 @@ end
 
 Represents the state of the walk
 """
-mutable struct Walk{N, Time, P} <: AbstractWalk{N, Time, P}
-    time::Time
-    position::P
-    nsteps::Int
+mutable struct Walk{N, TimeT, NStepsT, PosT} <: AbstractWalk{N, TimeT, NStepsT, PosT}
+    time::TimeT
+    position::PosT
+    nsteps::NStepsT
 end
 
-function Walk(p=Point(zero(Float64)))
-    T = Float64
-    z = zero(T)
-    nsteps = 0
-    return Walk{length(p), T, typeof(p)}(z, p, nsteps)
+const _default_walk_time_type = Float64
+const _default_walk_nsteps_type = Int
+const _default_walk_coord_type = Int
+
+function Walk(p=Point(zero(_default_walk_coord_type)); time = zero(_default_walk_time_type), nsteps = zero(_default_walk_nsteps_type))
+    return Walk{length(p), typeof(time), typeof(nsteps), typeof(p)}(time, p, nsteps)
 end
 
-Walk{N, T}() where {N, T} = Walk(zero(Point{N, T}))
-Walk{N}() where {N} = Walk(zero(Point{N, Float64}))
+function Walk{N, PosElT, TimeT, NStepsT}() where {N, PosElT, TimeT, NStepsT}
+    Walk(zero(Point{N, PosElT}); time = zero(TimeT), nsteps = zero(NStepsT))
+end
+
+Walk{N, PosElT, TimeT}() where {N, PosElT, TimeT} = Walk{N, PosElT, TimeT, _default_walk_nsteps_type}()
+Walk{N, PosElT}() where {N, PosElT} = Walk{N, PosElT, _default_walk_time_type}()
+Walk{N}() where {N} = Walk{N, _default_walk_coord_type}()
 
 """
     struct MortalWalk
 
 Represents the state of a mortal walk, i.e. a waker that "dies".
 """
-mutable struct MortalWalk{N, Time, P, Status} <: AbstractWalk{N, Time, P}
-    time::Time
-    position::P
-    nsteps::Int
-    status::Status
+mutable struct MortalWalk{N, TimeT, NStepsT, PosT, StatusT} <: AbstractWalk{N, TimeT, NStepsT, PosT}
+    time::TimeT
+    position::PosT
+    nsteps::NStepsT
+    status::StatusT
 end
 
 mutable struct MortalWalkStatus

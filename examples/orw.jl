@@ -1,6 +1,8 @@
 using RandomWalks, Distributions, BenchmarkTools
+using RandomWalks.Points
 using RandomWalks.LatticeVars
 using RandomWalks.Lattices
+using RandomWalks.WalksBase
 using RandomWalks.Walks
 using RandomWalks.Actors
 using EmpiricalCDFs
@@ -14,9 +16,9 @@ function orw()
     walk = Walk{d,Int}()
     lattice_walk = LatticeWalk(lattice, walk)
     step_limit_actor = StepLimitActor(nsteps)
-    lattice_walk_plan = LatticeWalkPlan(lattice_walk, step_limit_actor)
-    @time trial!(lattice_walk_plan, 1:ntrials, NullActor())
-    return lattice_walk_plan
+    walk_plan = WalkPlan(lattice_walk, step_limit_actor)
+    @time trial!(walk_plan, 1:ntrials, NullActor())
+    return walk_plan
 end
 
 # d = 2
@@ -27,8 +29,8 @@ end
 # walk = Walk{d,Int}()
 # lattice_walk = LatticeWalk(lattice, walk)
 # step_limit_actor = StepLimitActor(nsteps)
-# lattice_walk_plan = LatticeWalkPlan(lattice_walk, step_limit_actor)
+# walk_plan = LatticeWalkPlan(lattice_walk, step_limit_actor)
 
-# trial!(lattice_walk_plan, 1:ntrials, NullActor())
+# trial!(walk_plan, 1:ntrials, NullActor())
 
 nothing

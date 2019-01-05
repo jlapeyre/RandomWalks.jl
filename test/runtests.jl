@@ -4,7 +4,7 @@ using RandomWalks.LatticeVars
 using RandomWalks.Lattices
 using RandomWalks.Actors
 using RandomWalks.WalksBase
-using RandomWalks.LatticeWalks: walk!
+using RandomWalks.Walks
 
 using Test
 
@@ -39,7 +39,7 @@ include("actors_test.jl")
     walk!(latwalk, actors)
     @test  typeof(Actors.get_values(storing_actor)) == Vector{Float64}
 
-    lwp = LatticeWalkPlan(latwalk, ActorSet(step_limit_actor, storing_actor, NullActor()))
+    lwp = WalkPlan(latwalk, ActorSet(step_limit_actor, storing_actor, NullActor()))
     walk!(lwp)
     @test  typeof(Actors.get_values(storing_actor)) == Vector{Float64}
 end

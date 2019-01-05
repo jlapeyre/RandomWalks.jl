@@ -21,10 +21,10 @@ store_range = 1:.3:7.5
 storing_actor = storing_nsteps_actor(logrange(store_range))
 step_limit_actor = StepLimitActor(nsteps)
 theactors = ActorSet(step_limit_actor, storing_actor)
-lattice_walk_plan = LatticeWalkPlan(latwalk, theactors)
+walk_plan = WalkPlan(latwalk, theactors)
 ea = ECDFActor(storing_actor);
 
-@time trial!(lattice_walk_plan, 1:ntrials, ea);
+@time trial!(walk_plan, 1:ntrials, ea);
 
 sort!(ea);
 cdfs = get_cdfs(ea);

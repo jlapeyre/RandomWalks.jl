@@ -6,7 +6,9 @@ using ..WalksBase
 import ..WalksBase: get_position, get_time, get_nsteps, step!
 using ..Actors
 
-export AbstractLatticeWalk, LatticeWalk, LatticeWalkPlan, walk!, trial!
+import ..Walks: walk!
+
+export AbstractLatticeWalk, LatticeWalk
 
 abstract type AbstractLatticeWalk <: AbstractWalkGeneral
 end
@@ -36,6 +38,10 @@ function init!(lattice_walk::LatticeWalk{<:Any, <:MortalWalk})
     WalksBase.init!(lattice_walk.walk)
     unset_decayed(lattice_walk.walk)
     return nothing
+end
+
+for f in (:get_position, :get_time, :get_nsteps)
+    @eval ($f)(lw::LatticeWalk) = ($f)(lw.walk)
 end
 
 # mutable struct LatticeWalkStatus
@@ -95,47 +101,5 @@ function step!(walk::Walk, lattice::AbstractLattice)
     return true
 end
 
-# FIXME
-# Everything below is more general than lattice + walk
-# This should be WalkPlan, or something
-struct LatticeWalkPlan{T, V}
-    lattice_walk::T
-    actor::V
-end
-
-function Base.show(io::IO, lp::LatticeWalkPlan)
-    println(io, "LatticeWalkPlan")
-    show(io, lp.lattice_walk)
-    show(io, lp.actor)
-end
-
-walk!(lwp::LatticeWalkPlan) = walk!(lwp.lattice_walk, lwp.actor)
-
-for f in (:get_position, :get_time, :get_nsteps)
-    @eval ($f)(lw::LatticeWalk) = ($f)(lw.walk)
-    @eval ($f)(lwp::LatticeWalkPlan) = ($f)(lwp.lattice_walk)
-end
-
-# This works for more general object than AbstractLatticeWalk. Eg. an AbstractWalk
-# Move this.
-function walk!(lattice_walk::AbstractLatticeWalk, actor::AbstractActor)
-    init!(lattice_walk)
-    Actors.init!(actor)
-    while step!(lattice_walk) && Actors.act!(actor, lattice_walk)
-    end
-    return lattice_walk
-end
-
-function trial!(lattice_walk_plan::LatticeWalkPlan, sample_loop::SampleLoop)
-    return trial!(lattice_walk_plan, sample_loop.iter, sample_loop.actor)
-end
-
-function trial!(lattice_walk_plan::LatticeWalkPlan, iter::AbstractUnitRange, actor)
-    for i in iter
-        walk!(lattice_walk_plan)
-        Actors.act!(actor, lattice_walk_plan.lattice_walk)
-    end
-    return nothing
-end
 
 end  # module LatticeWalks

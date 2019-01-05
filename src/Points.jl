@@ -6,40 +6,21 @@ export Point, get_x, get_y, get_z, get_coords, unit_vectors2, unit_vectors3
 ### Point
 ###
 
-struct Point{N, T, C <: Tuple}
+struct Point{N, T, C <: NTuple{N, T}}
     coords::C
 end
 
 get_coords(p::Point) = p.coords
-
-# FIXME: is this useful ?
-# """
-#     define_Point(dim::Integer)
-
-# Define alias `Pointdimd = Point{dim,T,C} where C where T`.
-# """
-# function define_Point(d::Integer)
-#     type_name = Symbol("Point", d, "d")
-#     args = ((Symbol("x", i) for i in 1:d)...,)
-#     @eval ($type_name){T, C} = Point{$d, T, C}
-#     @eval ($type_name)($(args...)) = Point($(args...))
-# end
-
-# for d in 1:3
-#     define_Point(d)
-# end
-
 Point(coords::T...) where T = Point{length(coords), T, typeof(coords)}(coords)
 Point(coords::Tuple) = Point(coords...)
 
 @generated function Point{N, T}() where {N, T}
+    isa(N, Integer) || throw(TypeError(:Point, "", Integer, typeof(N)))
+    N > 0 || throw(DomainError(N, "N must be a positive Integer"))
     return Point((zero(T) for i in 1:N)...,)
 end
 
-@generated function Point{N}() where {N}
-    return Point((zero(Float64) for i in 1:N)...,)
-end
-
+Point{N}() where {N} = Point{N, Float64}()
 Point() = Point{1}()
 
 Base.getindex(p::Point, inds...) = getindex(get_coords(p), inds...)
@@ -50,9 +31,11 @@ get_x(p::Point) = p[1]
 get_y(p::Point) = p[2]
 get_z(p::Point) = p[3]
 
-import Base: +, -
+import Base: +, -, *
 +(p::Point{1, <:Any, <:Any}, x::Number) = Point(x + get_x(p))
 +(p1::Point{N}, p2::Point{N}) where N = Point((get_coords(p1) .+ get_coords(p2))...)
+*(p1::Point, n::Number) = Point((get_coords(p1) .* n))
+*(n::Number, p::Point) = p * n
 -(p::Point) = Point(broadcast(-, get_coords(p))...)
 -(p1::Point{N}, p2::Point{N}) where N = p1 + (-p2)
 

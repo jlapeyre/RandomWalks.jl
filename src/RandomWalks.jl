@@ -4,7 +4,6 @@ using EmpiricalCDFs
 
 export AbstractLatticeWalk, LatticeWalk
 export init!
-export LatticeWalkPlan, trial!
 export AbstractTrialCallback
 
 export get_position, get_waiting_time, get_decay_rate, get_time, get_nsteps, step!,
