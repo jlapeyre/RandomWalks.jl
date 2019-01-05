@@ -2,7 +2,7 @@ using RandomWalks
 using Distributions, BenchmarkTools
 using RandomWalks.LatticeVars
 using RandomWalks.Lattices
-using RandomWalks.Walks: Walk, MortalWalk
+using RandomWalks.Walks: Walk, MortalWalk, WalkPlan, trial!
 using RandomWalks.Actors
 using EmpiricalCDFs
 

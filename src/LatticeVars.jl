@@ -51,10 +51,8 @@ end
 
 Base.setindex!(vals::LatticeVal, val, inds::Int...) = vals.dict[inds] = val
 Base.getindex(vals::LatticeVal, inds::Int...) = vals.dict[inds]
-
 Base.setindex!(vals::LatticeVal, val, p::Point) = setindex!(vals, val, get_coords(p))
 Base.getindex(vals::LatticeVal, p::Point) = getindex(vals, get_coords(p))
-
 Base.get!(vals::LatticeVal, k, v) = get!(vals.dict, k, v)
 
 function Base.show(io::IO, v::LatticeVal{N, T}) where {N, T}
@@ -121,11 +119,9 @@ function LatticeVar{N}(dist::Distribution) where N
 end
 LatticeVar(dist::Distribution) = LatticeVar{1}(dist)
 
-
 Base.getindex(var::LatticeVar, inds::Int...) = get!(var.vals, inds, rand(var.dist))
 Base.getindex(var::LatticeVar, inds::Tuple) = get!(var.vals, inds, rand(var.dist))
 Base.getindex(var::LatticeVar, k::Point) = getindex(var, get_coords(k))
-
 Base.setindex!(var::LatticeVar, val, inds...) = (var.vals[inds...] = val)
 
 function Base.show(io::IO, v::LatticeVar{N}) where {N}

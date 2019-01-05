@@ -8,6 +8,7 @@ using RandomWalks.Walks
 
 using Test
 
+include("orw_test.jl")
 include("points_test.jl")
 include("actors_test.jl")
 
@@ -43,3 +44,4 @@ include("actors_test.jl")
     walk!(lwp)
     @test  typeof(Actors.get_values(storing_actor)) == Vector{Float64}
 end
+

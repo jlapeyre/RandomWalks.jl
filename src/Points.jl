@@ -31,18 +31,21 @@ get_x(p::Point) = p[1]
 get_y(p::Point) = p[2]
 get_z(p::Point) = p[3]
 
-import Base: +, -, *
+import Base: +, -, *, ==
 +(p::Point{1, <:Any, <:Any}, x::Number) = Point(x + get_x(p))
 +(p1::Point{N}, p2::Point{N}) where N = Point((get_coords(p1) .+ get_coords(p2))...)
 *(p1::Point, n::Number) = Point((get_coords(p1) .* n))
 *(n::Number, p::Point) = p * n
 -(p::Point) = Point(broadcast(-, get_coords(p))...)
 -(p1::Point{N}, p2::Point{N}) where N = p1 + (-p2)
+==(p1::Point{N}, p2::Point{N}) where N = get_coords(p1) == get_coords(p2)
+norm_squared(p::Point) = sum(x -> x^2, p.coords)
 
 Base.zero(p::Point) = Base.zero(typeof(p))
 # Replacing V with <:Any does not work. Method not found
 Base.zero(::Type{Point{N, T, V}}) where {N, T, V} = Point{N, T}()
 Base.zero(::Type{Point{N, T}}) where {T, N} = Point{N, T}()
+Base.iszero(p::Point{N, T}) where {N, T} = p == Point{N, T}()
 
 Base.show(io::IO, p::Point{N, T}) where {T, N}  = print(io, "Point{$N, $T}", get_coords(p))
 Base.show(io::IO, p::Point{1, T}) where {T}  = print(io, "Point{1, $T}(", get_coords(p)[1], ")")

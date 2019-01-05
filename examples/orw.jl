@@ -10,14 +10,14 @@ using JDistributions: Delta
 
 function orw()
     d = 2
-    nsteps = 10^7
+    nsteps = 10^3
     ntrials = 10^1
     lattice = Lattice{d}(Delta(1))
     walk = Walk{d,Int}()
     lattice_walk = LatticeWalk(lattice, walk)
     step_limit_actor = StepLimitActor(nsteps)
     walk_plan = WalkPlan(lattice_walk, step_limit_actor)
-    @time trial!(walk_plan, 1:ntrials, NullActor())
+    @time trial!(walk_plan, SampleLoopActor(ntrials))
     return walk_plan
 end
 

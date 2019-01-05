@@ -3,19 +3,19 @@ module Actors
 using ..WalksBase: get_nsteps, get_time, get_position
 using ..Points: get_x
 using EmpiricalCDFs
+import Statistics
 
-export AbstractActor, AbstractSampleActor, act!, ActorSet, NullActor, StepLimitActor
+export AbstractActor, act!, ActorSet, NullActor, StepLimitActor, FirstReturnActor
 export StoringActor, storing_position_actor, storing_num_sites_visited_actor,
     storing_nsteps_actor, storing_nsteps_position_actor
-export ECDFActor, ECDFAction, get_cdfs
-export SampleLoop
+export ECDFsActor, get_cdfs, ECDFActor, ECDFValueActor, get_cdf
+export SampleLoopActor
 
 abstract type AbstractActor end
 
 init!(_::AbstractActor) = nothing
-
-abstract type AbstractSampleActor <: AbstractActor
-end
+finalize!(_::AbstractActor) = nothing
+condition_satisfied(_::AbstractActor) = true
 
 ###
 ### ActorSet
@@ -32,7 +32,6 @@ end
 
 ActorSet(actors::AbstractActor...) = ActorSet((actors...,))
 ActorSet(actor::AbstractActor) = ActorSet((actor,))
-
 init!(actor_set::ActorSet) = foreach(actor -> init!(actor), actor_set.actors)
 
 function act!(actor_set::ActorSet, args...)
@@ -49,7 +48,6 @@ end
 struct NullActor <: AbstractActor
 end
 act!(_::NullActor, args...) = true
-#init!(_::NullActor) = nothing
 
 ###
 ### StepLimitActor
@@ -70,10 +68,7 @@ function act!(actor::StepLimitActor, latwalk)
     return true
 end
 
-function init!(actor::StepLimitActor)
-    actor.hit_max_step_limit = false
-    return nothing
-end
+init!(actor::StepLimitActor) = (actor.hit_max_step_limit = false; nothing)
 
 function Base.show(io::IO, actor::StepLimitActor)
     print(io, "StepLimitActor(n=", actor.max_step_limit,
@@ -135,14 +130,8 @@ struct StoringActor{T, X, F} <: AbstractActor
     storing_func::F
 end
 
-function StoringActor(times, storing_func, value_types)
-    return StoringActor(StoredValues(times; value_types=value_types), storing_func)
-end
-
-function StoringActor(times, storing_func::Tuple, value_types::Tuple)
-    return StoringActor(StoredValues(times; value_types=value_types), storing_func)
-end
-
+StoringActor(times, storing_func, value_types) = StoringActor(StoredValues(times; value_types=value_types), storing_func)
+StoringActor(times, storing_func::Tuple, value_types::Tuple) = StoringActor(StoredValues(times; value_types=value_types), storing_func)
 StoringActor(times, storing_func; value_types=Float64) = StoringActor(times, storing_func, value_types)
 
 function act!(actor::StoringActor, system)
@@ -191,7 +180,7 @@ function Base.show(io::IO, actor::StoringActor)
 end
 
 ###
-### basic instances of StoringActor
+### Some instances of StoringActor
 ###
 
 # FIXME: allowing single arrays rather than tuple of arrays (possibly of length 1) increases complexity
@@ -217,24 +206,77 @@ function storing_nsteps_position_actor(times)
 end
 
 ###
+### FirstReturnActor
+###
+
+mutable struct FirstReturnActor <: AbstractActor
+    return_step_num::Int
+    returned::Bool
+end
+
+FirstReturnActor() = FirstReturnActor(0, false)
+
+init!(actor::FirstReturnActor) = (actor.returned = false; actor.return_step_num = 0; nothing)
+function act!(actor::FirstReturnActor, system)
+    iszero(get_position(system)) || return true
+    actor.returned = true
+    actor.return_step_num = get_nsteps(system)
+    return false
+end
+
+condition_satisfied(actor::FirstReturnActor) = actor.returned
+get_actor_value(actor::FirstReturnActor) = actor.return_step_num
+
+###
 ### ECDFActor
 ###
 
-struct ECDFActor{T, F} <: AbstractActor
-    ecdfs::T
-    storing_func::F
+struct ECDFActor{T <: AbstractEmpiricalCDF, F, FC} <: AbstractActor
+    action_func::F
+    ecdf::T
+    condition_func::FC
 end
 
-function act!(actor::ECDFActor, _...)
-    actor.storing_func()
+ECDFActor(action_func, ecdf = EmpiricalCDF()) = ECDFActor(action_func, ecdf, _ -> true)
+init!(actor::ECDFActor) = (empty!(actor.ecdf); nothing)
+finalize!(actor::ECDFActor) = (sort!(actor.ecdf); nothing)
+
+function act!(actor::ECDFActor, system)
+    if actor.condition_func(system)
+        push!(actor.ecdf, actor.action_func(system))
+    end
     return true
 end
 
-#init!(actor::ECDFActor) = true
+get_cdf(ea::ECDFActor) = ea.ecdf
+#Base.sort!(actor::ECDFActor) = (sort!(actor.ecdf); actor)
 
-get_cdfs(ea::ECDFActor) = ea.ecdfs
 
-function ECDFActor(sa::StoringActor)
+"""
+    ECDFValueActor(value_actor::AbstractActor)
+
+Builds a CDF for any `value_actor` that implements `condition_satisfied` and `get_actor_value`.
+"""
+function ECDFValueActor(value_actor::AbstractActor)
+    ecdf = EmpiricalCDF{typeof(get_actor_value(value_actor))}()
+    condition_func = _ -> condition_satisfied(value_actor)
+    action_func = _ -> get_actor_value(value_actor)
+    return ECDFActor(action_func, ecdf, condition_func)
+end
+
+###
+### ECDFsActor
+###
+
+struct ECDFsActor{T, F} <: AbstractActor
+    storing_func::F
+    ecdfs::T
+end
+
+act!(actor::ECDFsActor, system) = (actor.storing_func(system); true)
+get_cdfs(ea::ECDFsActor) = ea.ecdfs
+
+function ECDFsActor(sa::StoringActor)
     storage_array = sa[2] # By default, use the first data array.
     times = get_times(sa)
     ecdfs = [EmpiricalCDF{eltype(storage_array)}() for i in 1:length(times)]
@@ -244,23 +286,57 @@ function ECDFActor(sa::StoringActor)
         end
         return true
     end
-    return ECDFActor(ecdfs, storing_func)
+    return ECDFsActor(storing_func, ecdfs)
 end
 
-function Base.sort!(actor::ECDFActor)
+function Base.sort!(actor::ECDFsActor)
     for cdf in actor.ecdfs
         sort!(cdf)
     end
     return actor
 end
 
+for f in (:length, :size, :minimum, :maximum, :extrema, :issorted, :iterate, :getindex, :lastindex, :firstindex, :eltype, :view)
+    @eval begin
+        Base.$(f)(cdf::ECDFActor, args...) = $(f)(cdf.ecdf, args...)
+        Base.$(f)(cdf::ECDFsActor, ind, args...) = $(f)(cdf.ecdfs[ind], args...)
+    end
+end
+
+for f in (:mean, :median, :middle, :std, :stdm, :var, :varm, :quantile)
+    @eval begin
+        Statistics.$(f)(cdf::ECDFActor, args...; kws...) = Statistics.$(f)(cdf.ecdf, args...; kws...)
+        Statistics.$(f)(cdf::ECDFsActor, ind, args...; kws...) = Statistics.$(f)(cdf.ecdfs[ind], args...; kws...)
+    end
+end
+
+for f in (:sort!, :empty!)
+    @eval begin
+        Base.$(f)(cdf::ECDFActor, args...) = ($(f)(cdf.ecdf,args...); cdf)
+    end
+end
+
 ###
-### SampleLoop
+### SampleLoopActor
 ###
 
-struct SampleLoop{Iter, ActorT}
+struct SampleLoopActor{Iter, ActorT} <: AbstractActor
     iter::Iter
     actor::ActorT
 end
+
+"""
+    SampleLoopActor(iter, actor::AbstractActor = NullActor())
+
+Actor for use in `trial!`. The sample iterator is `iter`.
+"""
+SampleLoopActor(iter) = SampleLoopActor(iter, NullActor())
+
+"""
+    SampleLoopActor(n::Integer,  actor = NullActor())
+
+Actor for use in `trial!` that performs `n` samples.
+"""
+SampleLoopActor(n::Integer, actor = NullActor()) = SampleLoopActor(1:n, actor)
 
 end # module Actors

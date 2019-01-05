@@ -24,6 +24,7 @@ struct Lattice{N, T} <: AbstractLattice
         return new{N, typeof(vartup)}(vartup)
     end
 end
+
 Lattice(args...) = Lattice{1}(args...)
 
 _getindex(dist::Distribution, inds...) = rand(dist)
@@ -31,9 +32,7 @@ _getindex(lattice_var::AbstractLatticeVar, inds...) = lattice_var[inds...]
 Base.getindex(lattice::Lattice, i::Integer) = lattice.vars[i]
 Base.getindex(lattice::Lattice, i::Integer, inds::Integer...) = _getindex(lattice[i], inds)
 Base.getindex(lattice::Lattice, i::Integer, p::Point) = _getindex(lattice[i], get_coords(p))
-
 init!(lattice::Lattice) = foreach(x -> init!(x), lattice.vars)
-
 get_vars(lattice::Lattice) = lattice.vars
 
 function Base.show(io::IO, lattice::Lattice{N}) where N
