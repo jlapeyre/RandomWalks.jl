@@ -15,7 +15,7 @@ export LatticeVal, AbstractLatticeVar, LatticeVar, LatticeVarParam, init!
 
 A container for values of type `T` attached to sites
 on an `N`-dimensional hyper-cubic lattice.
-Values are stored in a `Dict::D`.
+Values are stored in `dict::D`, typically a `Dict`.
 """
 struct LatticeVal{N, T, D}
     dict::D

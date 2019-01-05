@@ -3,7 +3,7 @@ using RandomWalks.Points
 using RandomWalks.LatticeVars
 using RandomWalks.Lattices
 using RandomWalks.Actors
-using RandomWalks.Walks
+using RandomWalks.WalksBase
 using RandomWalks.LatticeWalks: walk!
 
 using Test

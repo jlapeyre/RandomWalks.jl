@@ -2,17 +2,18 @@ module LatticeWalks
 
 import ..LatticeVars.init!
 using ..Lattices
-using ..Walks
-import ..Walks: get_position, get_time, get_nsteps, step!
+using ..WalksBase
+import ..WalksBase: get_position, get_time, get_nsteps, step!
 using ..Actors
 
 export AbstractLatticeWalk, LatticeWalk, LatticeWalkPlan, walk!, trial!
 
-abstract type AbstractLatticeWalk end
+abstract type AbstractLatticeWalk <: AbstractWalkGeneral
+end
 
 function init!(lattice_walk::AbstractLatticeWalk)
     init!(lattice_walk.lattice)
-    Walks.init!(lattice_walk.walk)
+    WalksBase.init!(lattice_walk.walk)
     return nothing
 end
 
@@ -32,7 +33,7 @@ end
 
 function init!(lattice_walk::LatticeWalk{<:Any, <:MortalWalk})
     init!(lattice_walk.lattice)
-    Walks.init!(lattice_walk.walk)
+    WalksBase.init!(lattice_walk.walk)
     unset_decayed(lattice_walk.walk)
     return nothing
 end
@@ -94,6 +95,9 @@ function step!(walk::Walk, lattice::AbstractLattice)
     return true
 end
 
+# FIXME
+# Everything below is more general than lattice + walk
+# This should be WalkPlan, or something
 struct LatticeWalkPlan{T, V}
     lattice_walk::T
     actor::V
@@ -112,7 +116,9 @@ for f in (:get_position, :get_time, :get_nsteps)
     @eval ($f)(lwp::LatticeWalkPlan) = ($f)(lwp.lattice_walk)
 end
 
-function walk!(lattice_walk::AbstractLatticeWalk, actor)
+# This works for more general object than AbstractLatticeWalk. Eg. an AbstractWalk
+# Move this.
+function walk!(lattice_walk::AbstractLatticeWalk, actor::AbstractActor)
     init!(lattice_walk)
     Actors.init!(actor)
     while step!(lattice_walk) && Actors.act!(actor, lattice_walk)

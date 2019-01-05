@@ -7,7 +7,7 @@ using RandomWalks.Actors
 using EmpiricalCDFs
 
 ntrials = 10^3
-nsteps = 10^7
+nsteps = 10^3
 lambda = 1e6
 
 lattice_rates = LatticeVar(Exponential(lambda))

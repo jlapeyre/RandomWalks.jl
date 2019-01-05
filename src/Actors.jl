@@ -1,6 +1,6 @@
 module Actors
 
-using ..Walks: get_nsteps, get_time, get_position
+using ..WalksBase: get_nsteps, get_time, get_position
 using ..Points: get_x
 using EmpiricalCDFs
 

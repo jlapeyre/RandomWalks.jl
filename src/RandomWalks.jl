@@ -21,11 +21,14 @@ using .LatticeVars
 include("Lattices.jl")
 using .Lattices
 
-include("Walks.jl")
-using .Walks
+include("WalksBase.jl")
+using .WalksBase
 
 include("Actors.jl")
 using .Actors
+
+include("Walks.jl")
+using .Walks
 
 include("LatticeWalks.jl")
 using .LatticeWalks

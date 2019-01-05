@@ -1,6 +1,6 @@
 module Points
 
-export Point, get_x, get_y, get_z, get_coords, unit_vectors2, define_Point
+export Point, get_x, get_y, get_z, get_coords, unit_vectors2, unit_vectors3
 
 ###
 ### Point
@@ -65,5 +65,8 @@ Base.show(io::IO, p::Point{N, T}) where {T, N}  = print(io, "Point{$N, $T}", get
 Base.show(io::IO, p::Point{1, T}) where {T}  = print(io, "Point{1, $T}(", get_coords(p)[1], ")")
 
 const unit_vectors2 = (Point(0, 1), Point(1, 0), Point(0, -1), Point(-1, 0))
+
+const unit_vectors3 = (Point(0, 0, 1), Point(0, 1, 0), Point(1, 0, 0),
+                       Point(0, 0, -1), Point(0, -1, 0), Point(-1, 0, 0))
 
 end # module Point
