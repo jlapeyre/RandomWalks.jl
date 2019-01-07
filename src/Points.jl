@@ -1,17 +1,23 @@
 module Points
 
 export Point, get_x, get_y, get_z, get_coords, unit_vectors2, unit_vectors3
+export UnitVector
 
 ###
 ### Point
 ###
 
-struct Point{N, T, C <: NTuple{N, T}}
-    coords::C
+# struct Point{N, T, C <: NTuple{N, T}}
+#     coords::C
+# end
+
+struct Point{N, T}
+    coords::NTuple{N, T}
 end
 
 get_coords(p::Point) = p.coords
-Point(coords::T...) where T = Point{length(coords), T, typeof(coords)}(coords)
+#Point(coords::T...) where T = Point{length(coords), T, typeof(coords)}(coords)
+Point(coords::T...) where T = Point{length(coords), T}(coords)
 Point(coords::Tuple) = Point(coords...)
 
 @generated function Point{N, T}() where {N, T}
@@ -32,7 +38,8 @@ get_y(p::Point) = p[2]
 get_z(p::Point) = p[3]
 
 import Base: +, -, *, ==
-+(p::Point{1, <:Any, <:Any}, x::Number) = Point(x + get_x(p))
++(p::Point{1, <:Any}, x::Number) = Point(x + get_x(p))
+#+(p::Point{1, <:Any, <:Any}, x::Number) = Point(x + get_x(p))
 +(p1::Point{N}, p2::Point{N}) where N = Point((get_coords(p1) .+ get_coords(p2))...)
 *(p1::Point, n::Number) = Point((get_coords(p1) .* n))
 *(n::Number, p::Point) = p * n
@@ -43,16 +50,38 @@ norm_squared(p::Point) = sum(x -> x^2, p.coords)
 
 Base.zero(p::Point) = Base.zero(typeof(p))
 # Replacing V with <:Any does not work. Method not found
-Base.zero(::Type{Point{N, T, V}}) where {N, T, V} = Point{N, T}()
+#Base.zero(::Type{Point{N, T, V}}) where {N, T, V} = Point{N, T}()
 Base.zero(::Type{Point{N, T}}) where {T, N} = Point{N, T}()
 Base.iszero(p::Point{N, T}) where {N, T} = p == Point{N, T}()
 
 Base.show(io::IO, p::Point{N, T}) where {T, N}  = print(io, "Point{$N, $T}", get_coords(p))
 Base.show(io::IO, p::Point{1, T}) where {T}  = print(io, "Point{1, $T}(", get_coords(p)[1], ")")
 
+
+const unit_vectors1 = (Point(1), Point(-1))
+
 const unit_vectors2 = (Point(0, 1), Point(1, 0), Point(0, -1), Point(-1, 0))
 
 const unit_vectors3 = (Point(0, 0, 1), Point(0, 1, 0), Point(1, 0, 0),
                        Point(0, 0, -1), Point(0, -1, 0), Point(-1, 0, 0))
+
+struct UnitVector{P}
+end
+
+function Base.rand(::Type{UnitVector{Point{N, T}}}) where {N, T}
+    return rand(UnitVector{Point{N}})
+end
+
+function Base.rand(::Type{UnitVector{Point{1}}})
+    return rand(Bool) ? Point(1) : Point(-1)
+end
+
+function Base.rand(::Type{UnitVector{Point{2}}})
+    return unit_vectors2[rand(1:4)]
+end
+
+function Base.rand(::Type{UnitVector{Point{3}}})
+    return unit_vectors3[rand(1:6)]
+end
 
 end # module Point

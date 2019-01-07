@@ -3,6 +3,7 @@ module Actors
 using ..WalksBase: get_nsteps, get_time, get_position
 using ..Points: get_x
 using EmpiricalCDFs
+import EmpiricalCDFs: get_data
 import Statistics
 
 export AbstractActor, act!, ActorSet, NullActor, StepLimitActor, FirstReturnActor
@@ -251,7 +252,6 @@ end
 get_cdf(ea::ECDFActor) = ea.ecdf
 #Base.sort!(actor::ECDFActor) = (sort!(actor.ecdf); actor)
 
-
 """
     ECDFValueActor(value_actor::AbstractActor)
 
@@ -296,7 +296,10 @@ function Base.sort!(actor::ECDFsActor)
     return actor
 end
 
-for f in (:length, :size, :minimum, :maximum, :extrema, :issorted, :iterate, :getindex, :lastindex, :firstindex, :eltype, :view)
+get_data(cdf::ECDFActor) = get_data(cdf.ecdf)
+
+for f in (:length, :size, :minimum, :maximum, :extrema, :issorted, :iterate, :getindex,
+          :lastindex, :firstindex, :eltype, :view)
     @eval begin
         Base.$(f)(cdf::ECDFActor, args...) = $(f)(cdf.ecdf, args...)
         Base.$(f)(cdf::ECDFsActor, ind, args...) = $(f)(cdf.ecdfs[ind], args...)

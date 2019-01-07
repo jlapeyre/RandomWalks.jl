@@ -1,11 +1,11 @@
 using RandomWalks
 using BenchmarkTools
-
-using RandomWalks.WalksBase: Walk, get_x
-using RandomWalks.Walks: WalkPlan, trial!
-using RandomWalks.Actors: StepLimitActor, ECDFActor, SampleLoopActor
 using EmpiricalCDFs: EmpiricalCDF
 using Statistics
+
+# using RandomWalks.WalksBase: Walk, get_x
+# using RandomWalks.Walks: WalkPlan, trial!
+# using RandomWalks.Actors: StepLimitActor, ECDFActor, SampleLoopActor
 
 nsamples = 10^5
 nsteps = 10^4

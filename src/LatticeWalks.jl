@@ -6,7 +6,7 @@ using ..WalksBase
 import ..WalksBase: get_position, get_time, get_nsteps, step!
 using ..Actors
 
-import ..Walks: walk!
+#import ..Walks: walk!
 
 export AbstractLatticeWalk, LatticeWalk
 
@@ -37,9 +37,9 @@ for f in (:get_position, :get_time, :get_nsteps)
     @eval ($f)(lw::LatticeWalk) = ($f)(lw.walk)
 end
 
-LatticeWalk(lat, walk) = LatticeWalk{typeof(lat), typeof(walk)}(lat, walk)
-
 Base.getindex(lattice_walk::LatticeWalk, inds...) = getindex(lattice_walk.lattice, inds...)
+
+LatticeWalk(lat, walk) = LatticeWalk{typeof(lat), typeof(walk)}(lat, walk)
 
 function Base.show(io::IO, lw::LatticeWalk)
     println(io, "LatticeWalk")
