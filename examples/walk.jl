@@ -3,7 +3,7 @@ using Distributions, BenchmarkTools
 using EmpiricalCDFs
 
 ntrials = 10^3
-nsteps = 10^3
+nsteps = 10^4
 lambda = 1e6
 
 lattice_rates = LatticeVar(Exponential(lambda))
@@ -21,9 +21,8 @@ theactors = ActorSet(step_limit_actor, storing_actor)
 walk_plan = WalkPlan(latwalk, theactors)
 ea = ECDFsActor(storing_actor);
 
-@time trial!(walk_plan, 1:ntrials, ea);
+@time trial!(walk_plan, SampleLoopActor(ntrials, ea));
 
-sort!(ea);
 cdfs = get_cdfs(ea);
 
 nothing

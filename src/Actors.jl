@@ -2,6 +2,7 @@ module Actors
 
 using ..WalksBase: get_nsteps, get_time, get_position
 using ..Points: get_x
+import ..LatticeVars.init!
 using EmpiricalCDFs
 import EmpiricalCDFs: get_data
 import Statistics
@@ -275,6 +276,8 @@ end
 
 act!(actor::ECDFsActor, system) = (actor.storing_func(system); true)
 get_cdfs(ea::ECDFsActor) = ea.ecdfs
+init!(actor::ECDFsActor) = (empty!(actor); nothing)
+finalize!(actor::ECDFsActor) = (sort!(actor); nothing)
 
 function ECDFsActor(sa::StoringActor)
     storage_array = sa[2] # By default, use the first data array.
@@ -289,11 +292,13 @@ function ECDFsActor(sa::StoringActor)
     return ECDFsActor(storing_func, ecdfs)
 end
 
-function Base.sort!(actor::ECDFsActor)
-    for cdf in actor.ecdfs
-        sort!(cdf)
+for f in (:sort!, :empty!)
+    @eval function Base.$(f)(actor::ECDFsActor)
+        for cdf in actor.ecdfs
+           ($f)(cdf)
+        end
+        return actor
     end
-    return actor
 end
 
 get_data(cdf::ECDFActor) = get_data(cdf.ecdf)
