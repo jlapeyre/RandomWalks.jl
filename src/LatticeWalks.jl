@@ -61,20 +61,14 @@ function step!(walk::WalkB, lattice::AbstractLattice)
     return true
 end
 
-const MortalWalks = Union{AMortalWalk, MortalWalk}
-
-function step!(lattice_walk::LatticeWalk{<:Any, <:MortalWalks})
+function step!(lattice_walk::LatticeWalk{<:Any, <:MortalWalk})
     result = step!(lattice_walk.walk, lattice_walk.lattice)
     result && return result
     set_status!(lattice_walk.walk, false)
     return result
 end
 
-# Separate for disambiguation
-step!(walk::MortalWalk, lattice::AbstractLattice) = _mortal_step!(walk, lattice)
-step!(walk::AMortalWalk, lattice::AbstractLattice) = _mortal_step!(walk, lattice)
-
-function _mortal_step!(walk, lattice)
+function step!(walk::MortalWalk, lattice::AbstractLattice)
     pos = get_position(walk)
     jump_time = lattice[1, pos]
     decay_time = lattice[2, pos]
@@ -86,12 +80,6 @@ function _mortal_step!(walk, lattice)
         step!(walk)
         return true
     end
-end
-
-function init!(lattice_walk::LatticeWalk{<:Any, <:MortalWalk})
-    init!(lattice_walk.lattice)
-    init!(lattice_walk.walk)
-    return nothing
 end
 
 end  # module LatticeWalks

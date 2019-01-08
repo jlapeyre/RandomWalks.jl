@@ -1,6 +1,5 @@
 @testset "Mortal walks" begin
-#    walk = MortalWalk()
-    walk = WalkF(status=Mortal())
+    walk = WalkF(status_type = Mortal())
 
     lattice_rates = LatticeVar{1}(Exponential(1e6))
     waiting_times = LatticeVar{1}(Pareto(0.5))

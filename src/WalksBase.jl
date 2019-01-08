@@ -7,11 +7,11 @@ using Printf: @sprintf
 import Distributions
 
 export AbstractWalkGeneral, AbstractWalk, WalkB, WalkF, WalkOpts, Mortal, MortalOpts,
-    AMortalWalk, MortalWalk, MortalWalkStatus,
+    MortalWalk, MortalWalkStatus,
     step!, step_increment!, get_position, get_x, get_y, get_z, set_position!, addto_time!, get_nsteps,
     incr_nsteps!, set_time!, get_time, set_status!
 
-export walk_opts
+export walk_opts, Continuous, ContinuousOpts, ContinuousWalk
 
 export set_decayed, unset_decayed
 
@@ -72,10 +72,9 @@ function init!(walk::WalkB{<:Any, TimeT, PosT}) where {TimeT, PosT}
 end
 
 const _default_walk_time_type = Float64
-const _default_walk_nsteps_type = Int
 const _default_walk_coord_type = Int
 
-function WalkB(p=Point(zero(_default_walk_coord_type)); time = zero(_default_walk_time_type), nsteps = zero(_default_walk_nsteps_type))
+function WalkB(p=Point(zero(_default_walk_coord_type)); time = zero(_default_walk_time_type), nsteps = zero(Int))
     return WalkB{length(p), typeof(time), typeof(p)}(time, p, nsteps)
 end
 
@@ -96,27 +95,21 @@ end
 ###
 
 struct WalkOpts{StatusT, StepSampleT, StepDispT}
-    status::StatusT
+    status_type::StatusT
     stepsample::StepSampleT
     stepdisplacement::StepDispT
 end
 
-function WalkOpts(; status = None(), stepsample = Unbiased(), stepdisplacement = NearestNeighbor())
-    return WalkOpts(status, stepsample, stepdisplacement)
+function WalkOpts(; status_type = Nothing(), stepsample = Unbiased(), stepdisplacement = NearestNeighbor())
+    return WalkOpts(status_type, stepsample, stepdisplacement)
 end
 
-# StatusT
-struct None
-end
-
-# StatusT
 mutable struct Mortal
     alive::Bool
 end
 Mortal() = Mortal(true)
 get_status(s::Mortal) = w.alive
 set_status!(s::Mortal, state) = s.alive = state
-
 
 # StepDispT
 struct NearestNeighbor
@@ -128,10 +121,9 @@ struct Continuous{DistT}
 end
 Continuous() = Continuous(Distributions.Normal())
 
-const MortalOpts = WalkOpts{<:Mortal, <:Any, <:Any}
-
-function walk_opts(walk::AbstractWalk = WalkB(); status = None(), stepsample = Unbiased(), stepdisplacement = NearestNeighbor())
-    return WalkOpts(status, stepsample, stepdisplacement)
+function walk_opts(walk::AbstractWalk = WalkB();
+                   status_type = Nothing(), stepsample = Unbiased(), stepdisplacement = NearestNeighbor())
+    return WalkOpts(status_type, stepsample, stepdisplacement)
 end
 
 """
@@ -148,74 +140,48 @@ struct WalkF{N, WT, OptT} <: AbstractWalk{N}
     opts::OptT
 end
 
-const AMortalWalk = WalkF{<:Any, <:Any, <:MortalOpts}
-
 function WalkF(w::AbstractWalk{N} = WalkB{1}(); kwargs...) where {N}
     wo = walk_opts(w; kwargs...)
     return WalkF{N, typeof(w), typeof(wo)}(w, wo)
 end
 
+const MortalOpts = WalkOpts{<:Mortal, <:Any, <:Any}
+const MortalWalk = WalkF{<:Any, <:Any, <:MortalOpts}
+MortalOpts(opts::WalkOpts) = WalkOpts(Mortal(), opts.stepsample, opts.stepdisplacement)
+MortalWalk(w = WalkB()) = WalkF(w, status_type = Mortal())
+
+function MortalWalk(wf::WalkF{N}) where {N}
+    opts = MortalOpts(wf.opts)
+    return WalkF{N, typeof(wf.walk), typeof(opts)}(wf.walk, opts)
+end
+
 init!(wf::WalkF) = init!(wf.walk)
 
 for f in (:get_status, :set_status!)
-    @eval ($f)(w::WalkOpts, args...) = ($f)(w.status, args...)
+    @eval ($f)(w::WalkOpts, args...) = ($f)(w.status_type, args...)
     @eval ($f)(w::WalkF, args...) = ($f)(w.opts, args...)
 end
-
-# TODO: Why to I need V1, V2, V3, rather than <:Any, .... ?
-#function step_increment!(walkf::WalkF{N, WalkB{N, V1, PosT}, WalkOpts{V2, StepSampleT, V3}}) where {N, PosT, StepSampleT, V1, V2, V3}
-# function step_increment!(walkf::WalkF{N, WalkB{N, V1, PosT}, WalkOpts{V2, V3, V4}}) where {N, PosT, V1, V2, V3, V4}
-#      return addto_position!(walkf.walk, rand(walkf.opts.stepsample, UnitVector{PosT}))
-# end
 
 # Why does this fail with  V1 --> <:Any
 function step_increment!(walkf::WalkF{N, WalkB{N, V1, PosT}, <:Any}) where {N, PosT, V1}
      return addto_position!(walkf.walk, rand(walkf.opts.stepsample, UnitVector{PosT}))
 end
 
-# function step_increment!(walkf::WalkF{N, WalkB{N, <:Any, PosT}, <:Any}) where {N, PosT}
-#      return addto_position!(walkf.walk, rand(walkf.opts.stepsample, UnitVector{PosT}))
+const ContinuousOpts = WalkOpts{<: Any, <: Any, <: Continuous}
+const ContinuousWalk = WalkF{<:Any, <:Any, <:ContinuousOpts}
+ContinuousWalk(w = WalkB(), dist=Distributions.Normal()) = WalkF(w, stepdisplacement = Continuous(dist))
+
+function step_increment!(walkf::WalkF{N, WalkB{N, V1, V2}, <:ContinuousOpts}) where {N, V1, V2}
+      return addto_position!(walkf.walk, rand(walkf.opts.stepdisplacement.dist))
+end
+
+# function step_increment!(walkf::WalkF{N, WalkB{N, V1, V2}, <:ContinuousOpts}) where {N, V1, V2}
+#       return addto_position!(walkf.walk, rand(walkf.opts.stepdisplacement.dist))
 # end
 
 for f in (:get_position, :set_position!, :addto_position!, :get_time, :set_time!, :get_nsteps,
           :set_nsteps!, :incr_nsteps!, :addto_time!, :get_x)
     @eval ($f)(wf::WalkF, args...) = ($f)(wf.walk, args...)
-end
-
-###
-### MortalWalk
-###
-
-"""
-    struct MortalWalk
-
-Represents the state of a mortal walk, i.e. a waker that "dies".
-"""
-mutable struct MortalWalk{N, WalkT, StatusT} <: AbstractWalk{N}
-    walk::WalkT
-    status::StatusT
-end
-
-get_status(w::MortalWalk) = w.status
-set_status!(w::MortalWalk, state) = w.status = state
-
-MortalWalk(walk::AbstractWalk{N}, status) where {N} = MortalWalk{N, typeof(walk), typeof(status)}(walk, status)
-MortalWalk(walk::AbstractWalk{N} = WalkB()) where {N} = MortalWalk(walk, true)
-
-for f in (:get_position, :set_position!, :addto_position!, :get_time, :set_time!, :get_nsteps,
-          :set_nsteps!, :incr_nsteps!, :addto_time!, :step!)
-    @eval ($f)(w::MortalWalk, args...) = ($f)(w.walk, args...)
-end
-
-function Base.show(io::IO, w::MortalWalk)
-    print(io, "MortalWalk(time=", @sprintf("%e", get_time(w)), ", position= ",
-          get_position(w), ", nsteps=", get_nsteps(w), ", status=", get_status(w), ")")
-end
-
-function init!(w::MortalWalk)
-    init!(w.walk)
-    w.status = false
-    return nothing
 end
 
 end # module WalksBase
