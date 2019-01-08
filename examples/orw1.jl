@@ -7,14 +7,16 @@ using Statistics
 # using RandomWalks.Walks: WalkPlan, trial!
 # using RandomWalks.Actors: StepLimitActor, ECDFActor, SampleLoopActor
 
-nsamples = 10^5
-nsteps = 10^4
-tolerance = 1e-2
+# nsamples = 10^5
+# nsteps = 10^4
+nsamples = 10^4
+nsteps = 10^3
+tolerance = 1e-1
 
 ecdf = EmpiricalCDF{Int}()
 cdf_actor = ECDFActor(get_x, ecdf)
 trial_loop = SampleLoopActor(nsamples, cdf_actor)
-@time trial!(WalkPlan(WalkB(), StepLimitActor(nsteps)), trial_loop)
+@time trial!(WalkPlan(WalkF(), StepLimitActor(nsteps)), trial_loop)
 
 ecdf =  ecdf ./ sqrt(nsteps)
 

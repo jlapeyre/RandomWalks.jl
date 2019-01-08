@@ -6,7 +6,8 @@ import ..LatticeVars.init!
 using Printf: @sprintf
 import Distributions
 
-export AbstractWalkGeneral, AbstractWalk, WalkB, WalkF, MortalWalk, MortalWalkStatus,
+export AbstractWalkGeneral, AbstractWalk, WalkB, WalkF, WalkOpts, Mortal, MortalOpts,
+    AMortalWalk, MortalWalk, MortalWalkStatus,
     step!, step_increment!, get_position, get_x, get_y, get_z, set_position!, addto_time!, get_nsteps,
     incr_nsteps!, set_time!, get_time, set_status!
 
@@ -38,6 +39,12 @@ set_nsteps!(w::AbstractWalk, val) = w.nsteps = val
 incr_nsteps!(w::AbstractWalk) = w.nsteps += 1
 addto_time!(w::AbstractWalk, incr) = w.time = w.time + incr
 
+function step!(walk::AbstractWalk)
+    step_increment!(walk)
+    incr_nsteps!(walk)
+    return true
+end
+
 ###
 ### WalkB
 ###
@@ -55,16 +62,6 @@ end
 
 function step_increment!(walk::WalkB{<:Any, <:Any, PosT}) where {PosT}
     return addto_position!(walk, rand(UnitVector{PosT}))
-end
-
-function step_increment!(walk::WalkB{<:Any, <:Any, PosT}) where {PosT}
-    return addto_position!(walk, rand(UnitVector{PosT}))
-end
-
-function step!(walk::AbstractWalk)
-    step_increment!(walk)
-    incr_nsteps!(walk)
-    return true
 end
 
 function init!(walk::WalkB{<:Any, TimeT, PosT}) where {TimeT, PosT}
@@ -104,14 +101,22 @@ struct WalkOpts{StatusT, StepSampleT, StepDispT}
     stepdisplacement::StepDispT
 end
 
+function WalkOpts(; status = None(), stepsample = Unbiased(), stepdisplacement = NearestNeighbor())
+    return WalkOpts(status, stepsample, stepdisplacement)
+end
+
 # StatusT
 struct None
 end
 
 # StatusT
 mutable struct Mortal
-    status::Bool
+    alive::Bool
 end
+Mortal() = Mortal(true)
+get_status(s::Mortal) = w.alive
+set_status!(s::Mortal, state) = s.alive = state
+
 
 # StepDispT
 struct NearestNeighbor
@@ -123,16 +128,40 @@ struct Continuous{DistT}
 end
 Continuous() = Continuous(Distributions.Normal())
 
-function walk_opts(walk::AbstractWalk; status = None(), stepsample = Unbiased(), stepdisplacement = NearestNeighbor())
+const MortalOpts = WalkOpts{<:Mortal, <:Any, <:Any}
+
+function walk_opts(walk::AbstractWalk = WalkB(); status = None(), stepsample = Unbiased(), stepdisplacement = NearestNeighbor())
     return WalkOpts(status, stepsample, stepdisplacement)
 end
 
-struct WalkF{WT, OptT}
+struct WalkF{N, WT, OptT} <: AbstractWalk{N}
     walk::WT
     opts::OptT
 end
 
-WalkF(w = WalkB()) = WalkF(w, walk_opts(w))
+const AMortalWalk = WalkF{<:Any, <:Any, <:MortalOpts}
+
+function WalkF(w::AbstractWalk{N} = WalkB{1}(); kwargs...) where {N}
+    wo = walk_opts(w; kwargs...)
+    return WalkF{N, typeof(w), typeof(wo)}(w, wo)
+end
+
+init!(wf::WalkF) = init!(wf.walk)
+
+for f in (:get_status, :set_status!)
+    @eval ($f)(w::WalkOpts, args...) = ($f)(w.status, args...)
+    @eval ($f)(w::WalkF, args...) = ($f)(w.opts, args...)
+end
+
+# TODO: Why to I need V1, V2, V3, rather than <:Any, .... ?
+function step_increment!(walkf::WalkF{N, WalkB{N, V1, PosT}, WalkOpts{V2, StepSampleT, V3}}) where {N, PosT, StepSampleT, V1, V2, V3}
+     return addto_position!(walkf.walk, rand(walkf.opts.stepsample, UnitVector{PosT}))
+end
+
+for f in (:get_position, :set_position!, :addto_position!, :get_time, :set_time!, :get_nsteps,
+          :set_nsteps!, :incr_nsteps!, :addto_time!, :get_x)
+    @eval ($f)(wf::WalkF, args...) = ($f)(wf.walk, args...)
+end
 
 ###
 ### MortalWalk
@@ -157,7 +186,6 @@ MortalWalk(walk::AbstractWalk{N} = WalkB()) where {N} = MortalWalk(walk, true)
 for f in (:get_position, :set_position!, :addto_position!, :get_time, :set_time!, :get_nsteps,
           :set_nsteps!, :incr_nsteps!, :addto_time!, :step!)
     @eval ($f)(w::MortalWalk, args...) = ($f)(w.walk, args...)
-#    @eval ($f)(w::WalkF, args...) = ($f)(w.walk, args...)
 end
 
 function Base.show(io::IO, w::MortalWalk)

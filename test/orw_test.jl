@@ -6,9 +6,11 @@ using MaximumLikelihoodPower: mle
     cutoff = 200
     first_return_actor = FirstReturnActor()
     ecdf_actor = ECDFValueActor(first_return_actor)
-    @time trial!(WalkPlan(WalkB(), ActorSet(StepLimitActor(10^10), first_return_actor)), SampleLoopActor(nsamples, ecdf_actor))
-    alpha, err = mle(ecdf_actor[end - cutoff:end])
-    @test isapprox(alpha, 3/2, atol=0.2)
+    for w in (WalkB(), WalkF())
+        @time trial!(WalkPlan(w, ActorSet(StepLimitActor(10^10), first_return_actor)), SampleLoopActor(nsamples, ecdf_actor))
+        alpha, err = mle(ecdf_actor[end - cutoff:end])
+        @test isapprox(alpha, 3/2, atol=0.2)
+    end
 end
 
 @testset "ordinary RW, mean std" begin
