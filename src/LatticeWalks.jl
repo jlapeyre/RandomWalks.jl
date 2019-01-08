@@ -6,8 +6,6 @@ using ..WalksBase
 import ..WalksBase: get_position, get_time, get_nsteps, step!
 using ..Actors
 
-#import ..Walks: walk!
-
 export AbstractLatticeWalk, LatticeWalk
 
 abstract type AbstractLatticeWalk <: AbstractWalkGeneral
@@ -55,7 +53,7 @@ function step!(lattice_walk::LatticeWalk{<:Any, <:Any})
     return result
 end
 
-function step!(walk::Walk, lattice::AbstractLattice)
+function step!(walk::WalkB, lattice::AbstractLattice)
     pos = get_position(walk)
     jump_time = lattice[1, pos]
     addto_time!(walk, jump_time)

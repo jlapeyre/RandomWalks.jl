@@ -6,7 +6,7 @@ using MaximumLikelihoodPower: mle
     cutoff = 200
     first_return_actor = FirstReturnActor()
     ecdf_actor = ECDFValueActor(first_return_actor)
-    @time trial!(WalkPlan(Walk(), ActorSet(StepLimitActor(10^10), first_return_actor)), SampleLoopActor(nsamples, ecdf_actor))
+    @time trial!(WalkPlan(WalkB(), ActorSet(StepLimitActor(10^10), first_return_actor)), SampleLoopActor(nsamples, ecdf_actor))
     alpha, err = mle(ecdf_actor[end - cutoff:end])
     @test isapprox(alpha, 3/2, atol=0.2)
 end
@@ -14,7 +14,7 @@ end
 @testset "ordinary RW, mean std" begin
     nsteps = 10^4
     ntrials = 10^5
-    w = Walk()
+    w = WalkB()
     wp = WalkPlan(w, StepLimitActor(nsteps))
     ecdf = EmpiricalCDF{Int}()
     cdf_actor = ECDFActor(get_x, ecdf)

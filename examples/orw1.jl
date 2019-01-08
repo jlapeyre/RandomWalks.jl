@@ -14,7 +14,7 @@ tolerance = 1e-2
 ecdf = EmpiricalCDF{Int}()
 cdf_actor = ECDFActor(get_x, ecdf)
 trial_loop = SampleLoopActor(nsamples, cdf_actor)
-@time trial!(WalkPlan(Walk(), StepLimitActor(nsteps)), trial_loop)
+@time trial!(WalkPlan(WalkB(), StepLimitActor(nsteps)), trial_loop)
 
 ecdf =  ecdf ./ sqrt(nsteps)
 

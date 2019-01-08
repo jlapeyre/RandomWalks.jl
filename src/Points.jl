@@ -1,7 +1,7 @@
 module Points
 
 export Point, get_x, get_y, get_z, get_coords, unit_vectors2, unit_vectors3
-export UnitVector
+export UnitVector, Biased, Unbiased
 
 ###
 ### Point
@@ -68,20 +68,22 @@ const unit_vectors3 = (Point(0, 0, 1), Point(0, 1, 0), Point(1, 0, 0),
 struct UnitVector{P}
 end
 
-function Base.rand(::Type{UnitVector{Point{N, T}}}) where {N, T}
-    return rand(UnitVector{Point{N}})
+struct Biased
+    bias::Float64
+end
+Biased() = Biased(0.5)
+
+struct Unbiased
 end
 
-function Base.rand(::Type{UnitVector{Point{1}}})
-    return rand(Bool) ? Point(1) : Point(-1)
-end
+Base.rand(ub::Unbiased, t::Type{UnitVector{Point{N, T}}}) where {N, T} = rand(t)
 
-function Base.rand(::Type{UnitVector{Point{2}}})
-    return unit_vectors2[rand(1:4)]
-end
+Base.rand(::Type{UnitVector{Point{N, T}}}) where {N, T} = rand(UnitVector{Point{N}})
+Base.rand(::Type{UnitVector{Point{1}}}) = rand(Bool) ? Point(1) : Point(-1)
+Base.rand(::Type{UnitVector{Point{2}}}) = unit_vectors2[rand(1:4)]
+Base.rand(::Type{UnitVector{Point{3}}}) = unit_vectors3[rand(1:6)]
 
-function Base.rand(::Type{UnitVector{Point{3}}})
-    return unit_vectors3[rand(1:6)]
-end
+Base.rand(b::Biased, ::Type{UnitVector{Point{N, T}}}) where {N, T} = rand(b, UnitVector{Point{N}})
+Base.rand(b::Biased, ::Type{UnitVector{Point{1}}}) = rand() > b.bias ? Point(1) : Point(-1)
 
 end # module Point

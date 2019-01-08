@@ -1,11 +1,4 @@
 using RandomWalks, Distributions
-using RandomWalks.Points
-using RandomWalks.LatticeVars
-using RandomWalks.Lattices
-using RandomWalks.Actors
-using RandomWalks.WalksBase
-using RandomWalks.Walks
-
 using Test
 
 include("orw_test.jl")

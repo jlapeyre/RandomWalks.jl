@@ -1,21 +1,22 @@
 module WalksBase
 using ..Points
-import ..Points: get_x
+import ..Points: get_x, Biased, Unbiased
 
 import ..LatticeVars.init!
 using Printf: @sprintf
 import Distributions
 
-export AbstractWalkGeneral, AbstractWalk, Walk, MortalWalk, MortalWalkStatus,
-    step!, get_position, get_x, get_y, get_z, set_position!, addto_time!, get_nsteps, incr_nsteps!, set_time!, get_time, set_status!
+export AbstractWalkGeneral, AbstractWalk, WalkB, WalkF, MortalWalk, MortalWalkStatus,
+    step!, step_increment!, get_position, get_x, get_y, get_z, set_position!, addto_time!, get_nsteps,
+    incr_nsteps!, set_time!, get_time, set_status!
 
-export walk_opts, WalkF
+export walk_opts
 
 export set_decayed, unset_decayed
 
 abstract type AbstractWalkGeneral end
 
-# FIXME: rationalize AbstractWalk / Walk methods
+# FIXME: rationalize AbstractWalk / WalkB methods
 """
     abstract type AbstractWalk{N, Time, P}
 
@@ -38,27 +39,35 @@ incr_nsteps!(w::AbstractWalk) = w.nsteps += 1
 addto_time!(w::AbstractWalk, incr) = w.time = w.time + incr
 
 ###
-### Walk
+### WalkB
 ###
 
 """
-    struct Walk
+    struct WalkB
 
 Represents the state of the walk
 """
-mutable struct Walk{N, TimeT, PosT} <: AbstractWalk{N}
+mutable struct WalkB{N, TimeT, PosT} <: AbstractWalk{N}
     time::TimeT
     position::PosT
     nsteps::Int
 end
 
-function step!(walk::Walk{<:Any, <:Any, PosT}) where {PosT}
-    addto_position!(walk, rand(UnitVector{PosT}))
+function step_increment!(walk::WalkB{<:Any, <:Any, PosT}) where {PosT}
+    return addto_position!(walk, rand(UnitVector{PosT}))
+end
+
+function step_increment!(walk::WalkB{<:Any, <:Any, PosT}) where {PosT}
+    return addto_position!(walk, rand(UnitVector{PosT}))
+end
+
+function step!(walk::AbstractWalk)
+    step_increment!(walk)
     incr_nsteps!(walk)
     return true
 end
 
-function init!(walk::Walk{<:Any, TimeT, PosT}) where {TimeT, PosT}
+function init!(walk::WalkB{<:Any, TimeT, PosT}) where {TimeT, PosT}
     set_time!(walk, zero(TimeT))
     set_position!(walk, zero(PosT))
     set_nsteps!(walk, zero(Int))
@@ -69,19 +78,19 @@ const _default_walk_time_type = Float64
 const _default_walk_nsteps_type = Int
 const _default_walk_coord_type = Int
 
-function Walk(p=Point(zero(_default_walk_coord_type)); time = zero(_default_walk_time_type), nsteps = zero(_default_walk_nsteps_type))
-    return Walk{length(p), typeof(time), typeof(p)}(time, p, nsteps)
+function WalkB(p=Point(zero(_default_walk_coord_type)); time = zero(_default_walk_time_type), nsteps = zero(_default_walk_nsteps_type))
+    return WalkB{length(p), typeof(time), typeof(p)}(time, p, nsteps)
 end
 
-function Walk{N, PosElT, TimeT}() where {N, PosElT, TimeT}
-    return Walk(zero(Point{N, PosElT}); time = zero(TimeT), nsteps = zero(Int))
+function WalkB{N, PosElT, TimeT}() where {N, PosElT, TimeT}
+    return WalkB(zero(Point{N, PosElT}); time = zero(TimeT), nsteps = zero(Int))
 end
 
-Walk{N, PosElT}() where {N, PosElT} = Walk{N, PosElT, _default_walk_time_type}()
-Walk{N}() where {N} = Walk{N, _default_walk_coord_type}()
+WalkB{N, PosElT}() where {N, PosElT} = WalkB{N, PosElT, _default_walk_time_type}()
+WalkB{N}() where {N} = WalkB{N, _default_walk_coord_type}()
 
-function Base.show(io::IO, w::Walk)
-    print(io, "Walk(time=", @sprintf("%e", get_time(w)), ", position= ",
+function Base.show(io::IO, w::WalkB)
+    print(io, "WalkB(time=", @sprintf("%e", get_time(w)), ", position= ",
           get_position(w), ", nsteps=", get_nsteps(w), ")")
 end
 
@@ -104,16 +113,6 @@ mutable struct Mortal
     status::Bool
 end
 
-# StepSampleT
-struct Unbiased
-end
-
-# StepSampleT
-struct Biased
-    bias::Float64
-end
-Biased() = Biased(0.5)
-
 # StepDispT
 struct NearestNeighbor
 end
@@ -133,7 +132,7 @@ struct WalkF{WT, OptT}
     opts::OptT
 end
 
-WalkF() = (w = Walk(); WalkF(w, walk_opts(w)))
+WalkF(w = WalkB()) = WalkF(w, walk_opts(w))
 
 ###
 ### MortalWalk
@@ -153,11 +152,12 @@ get_status(w::MortalWalk) = w.status
 set_status!(w::MortalWalk, state) = w.status = state
 
 MortalWalk(walk::AbstractWalk{N}, status) where {N} = MortalWalk{N, typeof(walk), typeof(status)}(walk, status)
-MortalWalk(walk::AbstractWalk{N} = Walk()) where {N} = MortalWalk(walk, true)
+MortalWalk(walk::AbstractWalk{N} = WalkB()) where {N} = MortalWalk(walk, true)
 
 for f in (:get_position, :set_position!, :addto_position!, :get_time, :set_time!, :get_nsteps,
           :set_nsteps!, :incr_nsteps!, :addto_time!, :step!)
     @eval ($f)(w::MortalWalk, args...) = ($f)(w.walk, args...)
+#    @eval ($f)(w::WalkF, args...) = ($f)(w.walk, args...)
 end
 
 function Base.show(io::IO, w::MortalWalk)
