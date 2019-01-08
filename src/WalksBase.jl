@@ -4,9 +4,12 @@ import ..Points: get_x
 
 import ..LatticeVars.init!
 using Printf: @sprintf
+import Distributions
 
 export AbstractWalkGeneral, AbstractWalk, Walk, MortalWalk, MortalWalkStatus,
     step!, get_position, get_x, get_y, get_z, set_position!, addto_time!, get_nsteps, incr_nsteps!, set_time!, get_time, set_status!
+
+export walk_opts, WalkF
 
 export set_decayed, unset_decayed
 
@@ -74,7 +77,6 @@ function Walk{N, PosElT, TimeT}() where {N, PosElT, TimeT}
     return Walk(zero(Point{N, PosElT}); time = zero(TimeT), nsteps = zero(Int))
 end
 
-#Walk{N, PosElT, TimeT}() where {N, PosElT, TimeT} = Walk{N, PosElT, TimeT, _default_walk_nsteps_type}()
 Walk{N, PosElT}() where {N, PosElT} = Walk{N, PosElT, _default_walk_time_type}()
 Walk{N}() where {N} = Walk{N, _default_walk_coord_type}()
 
@@ -82,6 +84,56 @@ function Base.show(io::IO, w::Walk)
     print(io, "Walk(time=", @sprintf("%e", get_time(w)), ", position= ",
           get_position(w), ", nsteps=", get_nsteps(w), ")")
 end
+
+###
+### WalkOpts
+###
+
+struct WalkOpts{StatusT, StepSampleT, StepDispT}
+    status::StatusT
+    stepsample::StepSampleT
+    stepdisplacement::StepDispT
+end
+
+# StatusT
+struct None
+end
+
+# StatusT
+mutable struct Mortal
+    status::Bool
+end
+
+# StepSampleT
+struct Unbiased
+end
+
+# StepSampleT
+struct Biased
+    bias::Float64
+end
+Biased() = Biased(0.5)
+
+# StepDispT
+struct NearestNeighbor
+end
+
+# StepDispT
+struct Continuous{DistT}
+    dist::DistT
+end
+Continuous() = Continuous(Distributions.Normal())
+
+function walk_opts(walk::AbstractWalk; status = None(), stepsample = Unbiased(), stepdisplacement = NearestNeighbor())
+    return WalkOpts(status, stepsample, stepdisplacement)
+end
+
+struct WalkF{WT, OptT}
+    walk::WT
+    opts::OptT
+end
+
+WalkF() = (w = Walk(); WalkF(w, walk_opts(w)))
 
 ###
 ### MortalWalk
@@ -112,12 +164,6 @@ function Base.show(io::IO, w::MortalWalk)
     print(io, "MortalWalk(time=", @sprintf("%e", get_time(w)), ", position= ",
           get_position(w), ", nsteps=", get_nsteps(w), ", status=", get_status(w), ")")
 end
-
-# Following is of marginal utility
-# MortalWalk{N, PosElT, TimeT}() where {N, PosElT, TimeT} = MortalWalk(Walk{N, PosElT, TimeT}(), true)
-# MortalWalk{N, PosElT}() where {N, PosElT} = MortalWalk(Walk{N, PosElT}(), true)
-# MortalWalk{N}() where {N} = MortalWalk(Walk{N}(), true)
-# MortalWalk() = MortalWalk(Walk(), true)
 
 function init!(w::MortalWalk)
     init!(w.walk)

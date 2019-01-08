@@ -1,6 +1,7 @@
 module RandomWalks
 
 using Reexport
+import Distributions
 using Distributions: Distribution, Exponential, Pareto
 
 include("utils.jl")
