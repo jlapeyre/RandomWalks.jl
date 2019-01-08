@@ -52,7 +52,7 @@ end
 """
     struct WalkB
 
-Represents the state of the walk
+Represents the "basic" state of the walk
 """
 mutable struct WalkB{N, TimeT, PosT} <: AbstractWalk{N}
     time::TimeT
@@ -134,6 +134,15 @@ function walk_opts(walk::AbstractWalk = WalkB(); status = None(), stepsample = U
     return WalkOpts(status, stepsample, stepdisplacement)
 end
 
+"""
+    struct WalkF{N, WT, OptT} <: AbstractWalk{N}
+        walk::WT
+        opts::OptT
+    end
+
+Represents the "Full" specification and state of the walk,
+via the "basic" walk state `walk`, and the options `opts`.
+"""
 struct WalkF{N, WT, OptT} <: AbstractWalk{N}
     walk::WT
     opts::OptT
@@ -154,9 +163,19 @@ for f in (:get_status, :set_status!)
 end
 
 # TODO: Why to I need V1, V2, V3, rather than <:Any, .... ?
-function step_increment!(walkf::WalkF{N, WalkB{N, V1, PosT}, WalkOpts{V2, StepSampleT, V3}}) where {N, PosT, StepSampleT, V1, V2, V3}
+#function step_increment!(walkf::WalkF{N, WalkB{N, V1, PosT}, WalkOpts{V2, StepSampleT, V3}}) where {N, PosT, StepSampleT, V1, V2, V3}
+# function step_increment!(walkf::WalkF{N, WalkB{N, V1, PosT}, WalkOpts{V2, V3, V4}}) where {N, PosT, V1, V2, V3, V4}
+#      return addto_position!(walkf.walk, rand(walkf.opts.stepsample, UnitVector{PosT}))
+# end
+
+# Why does this fail with  V1 --> <:Any
+function step_increment!(walkf::WalkF{N, WalkB{N, V1, PosT}, <:Any}) where {N, PosT, V1}
      return addto_position!(walkf.walk, rand(walkf.opts.stepsample, UnitVector{PosT}))
 end
+
+# function step_increment!(walkf::WalkF{N, WalkB{N, <:Any, PosT}, <:Any}) where {N, PosT}
+#      return addto_position!(walkf.walk, rand(walkf.opts.stepsample, UnitVector{PosT}))
+# end
 
 for f in (:get_position, :set_position!, :addto_position!, :get_time, :set_time!, :get_nsteps,
           :set_nsteps!, :incr_nsteps!, :addto_time!, :get_x)

@@ -16,14 +16,15 @@ end
 @testset "ordinary RW, mean std" begin
     nsteps = 10^4
     ntrials = 10^5
-    w = WalkB()
-    wp = WalkPlan(w, StepLimitActor(nsteps))
-    ecdf = EmpiricalCDF{Int}()
-    cdf_actor = ECDFActor(get_x, ecdf)
-    trial_loop = SampleLoopActor(ntrials, cdf_actor)
-    @time trial!(wp, trial_loop)
-    ecdf =  ecdf ./ sqrt(nsteps)
-    tol = 1e-2
-    @test isapprox(std(ecdf), 1; atol=tol)
-    @test isapprox(mean(ecdf), 0; atol=tol)
+    for w in (WalkB(), WalkF())
+        wp = WalkPlan(w, StepLimitActor(nsteps))
+        ecdf = EmpiricalCDF{Int}()
+        cdf_actor = ECDFActor(get_x, ecdf)
+        trial_loop = SampleLoopActor(ntrials, cdf_actor)
+        @time trial!(wp, trial_loop)
+        ecdf =  ecdf ./ sqrt(nsteps)
+        tol = 1e-2
+        @test isapprox(std(ecdf), 1; atol=tol)
+        @test isapprox(mean(ecdf), 0; atol=tol)
+    end
 end

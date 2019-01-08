@@ -8,7 +8,7 @@ import Statistics
 
 export AbstractActor, act!, ActorSet, NullActor, StepLimitActor, FirstReturnActor
 export StoringActor, storing_position_actor, storing_num_sites_visited_actor,
-    storing_nsteps_actor, storing_nsteps_position_actor
+    storing_nsteps_actor, storing_nsteps_position_actor, init!
 export ECDFsActor, get_cdfs, ECDFActor, ECDFValueActor, get_cdf
 export SampleLoopActor
 
