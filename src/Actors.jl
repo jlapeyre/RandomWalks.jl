@@ -289,12 +289,14 @@ init!(actor::ECDFsActor) = (empty!(actor); nothing)
 finalize!(actor::ECDFsActor) = (sort!(actor); nothing)
 
 function ECDFsActor(sa::StoringActor)
-    storage_array = sa[2] # By default, use the first data array.
+#    storage_array = sa[2] # By default, use the first data array.
     times = get_times(sa)
-    ecdfs = [EmpiricalCDF{eltype(storage_array)}() for i in 1:length(times)]
+    ecdfs = [EmpiricalCDF{eltype(sa[j])}() for i in 1:length(times), j in 2:length(sa)]
     storing_func = function(_...)
-        for i in 1:length(storage_array)
-            push!(ecdfs[i], storage_array[i])
+        for j in 2:length(sa)
+            for i in 1:length(sa[j])
+                push!(ecdfs[i, j-1], sa[j][i])
+            end
         end
         return true
     end
