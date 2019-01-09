@@ -96,8 +96,8 @@ struct ActorSet{T <: Tuple} <: AbstractActor
     actors::T
 end
 
-ActorSet(actors::AbstractActor...) = ActorSet((actors...,))
-ActorSet(actor::AbstractActor) = ActorSet((actor,))
+ActorSet(child_actors::AbstractActor...) = ActorSet((child_actors...,))
+ActorSet(child_actor::AbstractActor) = ActorSet((child_actor,))
 init!(actor_set::ActorSet) = foreach(actor -> init!(actor), actor_set.actors)
 
 function act!(actor_set::ActorSet, args...)
