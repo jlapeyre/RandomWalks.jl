@@ -203,7 +203,6 @@ for f in (:get_values, :get_times)
 end
 get_stored_values(sa::StoringActor) = sa.stored_values
 
-
 Base.getindex(sa::StoringActor, ind1::Integer, inds...) = _getindex(sa, Val(ind1), inds...)
 Base.getindex(sa::StoringActor, ind1::Integer) = _getindex(sa, Val(ind1))
 _getindex(sa::StoringActor, ::Val{1}, inds...) = get_times(sa)[inds...]
@@ -270,14 +269,14 @@ end
 get_cdf(ea::ECDFActor) = ea.ecdf
 
 """
-    ECDFValueActor(value_actor::AbstractActor)
+    ECDFValueActor(child_actor::AbstractActor)
 
-Builds a CDF for any `value_actor` that implements `condition_satisfied` and `get_actor_value`.
+Builds a CDF for any `child_actor` that implements `condition_satisfied` and `get_actor_value`.
 """
-function ECDFValueActor(value_actor::AbstractActor)
-    ecdf = EmpiricalCDF{typeof(get_actor_value(value_actor))}()
-    condition_func = _ -> condition_satisfied(value_actor)
-    action_func = _ -> get_actor_value(value_actor)
+function ECDFValueActor(child_actor::AbstractActor)
+    ecdf = EmpiricalCDF{typeof(get_actor_value(child_actor))}()
+    condition_func = _ -> condition_satisfied(child_actor)
+    action_func = _ -> get_actor_value(child_actor)
     return ECDFActor(action_func, ecdf, condition_func)
 end
 
@@ -285,9 +284,16 @@ end
 ### ECDFsActor
 ###
 
-struct ECDFsActor{T, F} <: AbstractActor
-    storing_func::F
+# In some cases, we may not need, or even have, a child_actor
+struct ECDFsActor{T, F, CT} <: AbstractActor
     ecdfs::T
+    storing_func::F
+    child_actor::CT
+end
+
+function Base.show(io::IO, actor::ECDFsActor)
+    print(io, "ECDFsActor{", typeof(actor.ecdfs), ", F, ",
+          typeof(actor.child_actor), "}")
 end
 
 act!(actor::ECDFsActor, system) = (actor.storing_func(system); true)
@@ -296,18 +302,18 @@ init!(actor::ECDFsActor) = (empty!(actor); nothing)
 finalize!(actor::ECDFsActor) = (sort!(actor); nothing)
 
 # TODO: Fix indexing. Time should not be in index value 1
-function ECDFsActor(sa::StoringActor)
-    times = get_times(sa)
-    ecdfs = [EmpiricalCDF{eltype(sa[j])}() for i in 1:length(times), j in 2:length(sa)]
+function ECDFsActor(storing_actor::StoringActor)
+    times = get_times(storing_actor)
+    ecdfs = [EmpiricalCDF{eltype(storing_actor[j])}() for i in 1:length(times), j in 2:length(storing_actor)]
     storing_func = function(_...)
-        for j in 2:length(sa)
-            for i in 1:length(sa[j])
-                push!(ecdfs[i, j-1], sa[j][i])
+        for j in 2:length(storing_actor)
+            for i in 1:length(storing_actor[j])
+                push!(ecdfs[i, j-1], storing_actor[j][i])
             end
         end
         return true
     end
-    return ECDFsActor(storing_func, ecdfs)
+    return ECDFsActor(ecdfs, storing_func, storing_actor)
 end
 
 for f in (:sort!, :empty!)
