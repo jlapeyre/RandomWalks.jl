@@ -10,6 +10,7 @@ import Statistics
 
 export AbstractActor, act!, ActorSet, NullActor, StepLimitActor, FirstReturnActor
 export StoringActor, init!,  storing_position_actor, storing_num_sites_visited_actor,
+    get_times, get_values, get_stored_values,
     storing_nsteps_actor, storing_nsteps_position_actor, storing_nsteps_num_sites_visited_actor
 export ECDFsActor, get_cdfs, ECDFActor, ECDFValueActor, get_cdf
 export SampleLoopActor, get_actor
@@ -116,6 +117,10 @@ mutable struct StoredValues{T, X}
     current_index::Int
 end
 
+function Base.getindex(sv::StoredValues, ind1, ind2)
+    return sv.values[ind2][ind1]
+end
+
 Base.show(io::IO, sv::StoredValues) = Base.show(io, MIME("text/plain"), sv)
 
 function Base.show(io::IO, m::typeof(MIME("text/plain")), sv::StoredValues{T}) where T
@@ -196,6 +201,8 @@ end
 for f in (:get_values, :get_times)
     @eval ($f)(sa::StoringActor) = ($f)(sa.stored_values)
 end
+get_stored_values(sa::StoringActor) = sa.stored_values
+
 
 Base.getindex(sa::StoringActor, ind1::Integer, inds...) = _getindex(sa, Val(ind1), inds...)
 Base.getindex(sa::StoringActor, ind1::Integer) = _getindex(sa, Val(ind1))
@@ -288,8 +295,8 @@ get_cdfs(ea::ECDFsActor) = ea.ecdfs
 init!(actor::ECDFsActor) = (empty!(actor); nothing)
 finalize!(actor::ECDFsActor) = (sort!(actor); nothing)
 
+# TODO: Fix indexing. Time should not be in index value 1
 function ECDFsActor(sa::StoringActor)
-#    storage_array = sa[2] # By default, use the first data array.
     times = get_times(sa)
     ecdfs = [EmpiricalCDF{eltype(sa[j])}() for i in 1:length(times), j in 2:length(sa)]
     storing_func = function(_...)

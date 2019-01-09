@@ -3,9 +3,9 @@ using RandomWalks.LatticeWalks
 using Distributions, BenchmarkTools
 using EmpiricalCDFs
 
-ntrials = 10^3
+ntrials = 10^4
 nsteps = 10^4
-lambda = 1e6
+lambda = 1e3
 
 lattice_rates = LatticeVar(Exponential(lambda))
 waiting_times = LatticeVarParam(Pareto(0.5))
