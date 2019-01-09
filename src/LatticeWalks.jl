@@ -1,12 +1,12 @@
 module LatticeWalks
 
-import ..LatticeVars.init!
+import ..LatticeVars.init!, ..LatticeVars.get_num_sites_visited
 using ..Lattices
 using ..WalksBase
 import ..WalksBase: get_position, get_time, get_nsteps, step!
 using ..Actors
 
-export AbstractLatticeWalk, LatticeWalk
+export AbstractLatticeWalk, LatticeWalk, get_num_sites_visited
 
 abstract type AbstractLatticeWalk <: AbstractWalkGeneral
 end
@@ -33,6 +33,10 @@ end
 
 for f in (:get_position, :get_time, :get_nsteps)
     @eval ($f)(lw::LatticeWalk) = ($f)(lw.walk)
+end
+
+for f in (:get_num_sites_visited,)
+    @eval ($f)(lw::LatticeWalk) = ($f)(lw.lattice)
 end
 
 Base.getindex(lattice_walk::LatticeWalk, inds...) = getindex(lattice_walk.lattice, inds...)

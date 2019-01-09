@@ -2,16 +2,17 @@ module Actors
 
 using ..WalksBase: get_nsteps, get_time, get_position
 using ..Points: get_x
-import ..LatticeVars.init!
+import ..LatticeVars: init!
+using ..LatticeVars: get_num_sites_visited
 using EmpiricalCDFs
 import EmpiricalCDFs: get_data
 import Statistics
 
 export AbstractActor, act!, ActorSet, NullActor, StepLimitActor, FirstReturnActor
-export StoringActor, storing_position_actor, storing_num_sites_visited_actor,
-    storing_nsteps_actor, storing_nsteps_position_actor, init!
+export StoringActor, init!,  storing_position_actor, storing_num_sites_visited_actor,
+    storing_nsteps_actor, storing_nsteps_position_actor, storing_nsteps_num_sites_visited_actor
 export ECDFsActor, get_cdfs, ECDFActor, ECDFValueActor, get_cdf
-export SampleLoopActor
+export SampleLoopActor, get_actor
 
 abstract type AbstractActor end
 
@@ -26,7 +27,8 @@ condition_satisfied(_::AbstractActor) = true
 """
     struct ActorSet
 
-blah
+A set of several `Actors` to be applied sequentially.
+If one of the set returns `false`, then `ActorSet` immediately returns false.
 """
 struct ActorSet{T <: Tuple} <: AbstractActor
     actors::T
@@ -132,9 +134,9 @@ struct StoringActor{T, X, F} <: AbstractActor
     storing_func::F
 end
 
+StoringActor(times, storing_func; value_types=Float64) = StoringActor(times, storing_func, value_types)
 StoringActor(times, storing_func, value_types) = StoringActor(StoredValues(times; value_types=value_types), storing_func)
 StoringActor(times, storing_func::Tuple, value_types::Tuple) = StoringActor(StoredValues(times; value_types=value_types), storing_func)
-StoringActor(times, storing_func; value_types=Float64) = StoringActor(times, storing_func, value_types)
 
 function act!(actor::StoringActor, system)
     get_current_index(actor.stored_values) > lastindex(actor.stored_values) && return false # terminate walk
@@ -176,10 +178,7 @@ _getindex(sa::StoringActor, ::Val{1}) = get_times(sa)
 _getindex(sa::StoringActor, ::Val{n}) where {n} = get_values(sa)[n-1]
 Base.length(sa::StoringActor) = length(get_values(sa)) + 1
 Base.size(sa::StoringActor) = (length(sa), ((length(sa[i]) for i in 1:length(sa))...,))
-
-function Base.show(io::IO, actor::StoringActor)
-    print(io, "StoringActor(", actor.stored_values, ")")
-end
+Base.show(io::IO, actor::StoringActor) = print(io, "StoringActor(", actor.stored_values, ")")
 
 ###
 ### Some instances of StoringActor
@@ -191,7 +190,7 @@ end
 storing_position_actor(times) = StoringActor(times, (system) -> get_x(get_position(system)))
 
 function storing_num_sites_visited_actor(times)
-    funcs = ((system) -> get_nsteps(system),)
+    funcs = ((system) -> get_num_sites_visited(system),)
     value_types = (Int,)
     return StoringActor(times, funcs; value_types=value_types)
 end
@@ -207,10 +206,21 @@ function storing_nsteps_position_actor(times)
     return StoringActor(times, funcs; value_types=(Int, Float64))
 end
 
+function storing_nsteps_num_sites_visited_actor(times)
+    funcs = ((system) -> get_nsteps(system), (system) -> get_num_sites_visited(system))
+    value_types = (Int, Int)
+    return StoringActor(times, funcs; value_types=value_types)
+end
+
 ###
 ### FirstReturnActor
 ###
 
+"""
+    FirstReturnActor <: AbstractActor
+
+Records and returns `true`, and the step number if the position is the origin.
+"""
 mutable struct FirstReturnActor <: AbstractActor
     return_step_num::Int
     returned::Bool
@@ -251,7 +261,6 @@ function act!(actor::ECDFActor, system)
 end
 
 get_cdf(ea::ECDFActor) = ea.ecdf
-#Base.sort!(actor::ECDFActor) = (sort!(actor.ecdf); actor)
 
 """
     ECDFValueActor(value_actor::AbstractActor)
@@ -346,5 +355,7 @@ SampleLoopActor(iter) = SampleLoopActor(iter, NullActor())
 Actor for use in `trial!` that performs `n` samples.
 """
 SampleLoopActor(n::Integer, actor = NullActor()) = SampleLoopActor(1:n, actor)
+
+get_actor(s::SampleLoopActor) = s.actor
 
 end # module Actors

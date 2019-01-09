@@ -4,7 +4,8 @@ using ..Points
 import Distributions
 using Distributions: Distribution
 
-export LatticeVal, AbstractLatticeVar, LatticeVar, LatticeVarParam, init!
+export LatticeVal, AbstractLatticeVar, LatticeVar, LatticeVarParam, init!,
+    get_num_sites_visited
 
 ###
 ### LatticeVal
@@ -49,6 +50,8 @@ for f in (:empty!, :length)
     @eval Base.$(f)(vals::LatticeVal) = ($f)(vals.dict)
 end
 
+get_num_sites_visited(vals::LatticeVal) = length(vals)
+
 Base.setindex!(vals::LatticeVal, val, inds::Int...) = vals.dict[inds] = val
 Base.getindex(vals::LatticeVal, inds::Int...) = vals.dict[inds]
 Base.setindex!(vals::LatticeVal, val, p::Point) = setindex!(vals, val, get_coords(p))
@@ -60,6 +63,16 @@ function Base.show(io::IO, v::LatticeVal{N, T}) where {N, T}
 end
 
 abstract type AbstractLatticeVar end
+
+get_num_sites_visited(v::AbstractLatticeVar) = get_num_sites_visited(get_vals(v))
+
+for f in (:length, :eltype)
+    @eval Base.$(f)(v::AbstractLatticeVar) = ($f)(get_vals(v))
+end
+
+init!(v::AbstractLatticeVar) = (init!(get_vals(v)); nothing)
+# This should not be exported to avoid method squatting
+init!(d::Distribution) = nothing
 
 ###
 ### LatticeVar
@@ -81,14 +94,6 @@ end
 
 get_vals(lv::LatticeVar) = lv.vals
 get_dist(lv::LatticeVar) = lv.dist
-
-for f in (:length, :eltype)
-    @eval Base.$(f)(v::AbstractLatticeVar) = ($f)(get_vals(v))
-end
-
-init!(v::AbstractLatticeVar) = (init!(get_vals(v)); nothing)
-# This should not be exported to avoid method squatting
-init!(d::Distribution) = nothing
 
 """
     LatticeVar{N=1}(dist::Distribution)

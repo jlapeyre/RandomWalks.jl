@@ -1,7 +1,7 @@
 module Lattices
 
 using ..LatticeVars
-import ..LatticeVars.init!
+import ..LatticeVars.init!, ..LatticeVars.get_num_sites_visited
 using ..Points
 using Distributions
 
@@ -34,6 +34,7 @@ Base.getindex(lattice::Lattice, i::Integer, inds::Integer...) = _getindex(lattic
 Base.getindex(lattice::Lattice, i::Integer, p::Point) = _getindex(lattice[i], get_coords(p))
 init!(lattice::Lattice) = foreach(x -> init!(x), lattice.vars)
 get_vars(lattice::Lattice) = lattice.vars
+get_num_sites_visited(lattice::Lattice) = get_num_sites_visited(get_vars(lattice)[1])
 
 function Base.show(io::IO, lattice::Lattice{N}) where N
     println(io, N, "-dimensional Lattice")

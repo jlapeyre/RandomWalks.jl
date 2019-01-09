@@ -50,9 +50,19 @@ end
 ###
 
 """
-    struct WalkB
+    mutable struct WalkB{N, TimeT, PosT} <: AbstractWalk{N}
+        time::TimeT
+        position::PosT
+        nsteps::Int
+    end
 
-Represents the "basic" state of the walk
+Represents the "basic" state of the walk.
+`time` is the current physical time.
+`position` is the current position.
+`nsteps` is the current number of steps taken.
+
+Often, the "physical time" is the same as the number of steps.
+In this case, the algorithms typically do not update `time`.
 """
 mutable struct WalkB{N, TimeT, PosT} <: AbstractWalk{N}
     time::TimeT

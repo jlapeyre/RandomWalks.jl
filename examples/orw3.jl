@@ -3,13 +3,13 @@ using BenchmarkTools
 using EmpiricalCDFs: EmpiricalCDF, get_data
 using Statistics
 
-nsamples = 10^5
-nsteps = 10^4
+nsamples = 10^4
+nsteps = 10^3
 tolerance = 1e-2
 
 ecdf = EmpiricalCDF()
-trial_loop = SampleLoopActor(nsamples, ECDFActor(get_x, ecdf)
-@time trial!(WalkPlan(WalkF(), StepLimitActor(nsteps)), trial_loop)
+trial_loop = SampleLoopActor(nsamples, ECDFActor(get_x, ecdf))
+@time trial!(WalkPlan(ContinuousWalk(WalkB(Point(0.0))), StepLimitActor(nsteps)), trial_loop)
 
 x = get_data(ecdf)
 x ./= sqrt(nsteps)
