@@ -21,31 +21,6 @@ finalize!(_::AbstractActor) = nothing
 condition_satisfied(_::AbstractActor) = true
 
 ###
-### ActorSet
-###
-
-"""
-    struct ActorSet
-
-A set of several `Actors` to be applied sequentially.
-If one of the set returns `false`, then `ActorSet` immediately returns false.
-"""
-struct ActorSet{T <: Tuple} <: AbstractActor
-    actors::T
-end
-
-ActorSet(actors::AbstractActor...) = ActorSet((actors...,))
-ActorSet(actor::AbstractActor) = ActorSet((actor,))
-init!(actor_set::ActorSet) = foreach(actor -> init!(actor), actor_set.actors)
-
-function act!(actor_set::ActorSet, args...)
-    for actor in actor_set.actors
-        act!(actor, args...)::Bool || return false
-    end
-    return true
-end
-
-###
 ### NullActor
 ###
 
@@ -77,6 +52,58 @@ init!(actor::StepLimitActor) = (actor.hit_max_step_limit = false; nothing)
 function Base.show(io::IO, actor::StepLimitActor)
     print(io, "StepLimitActor(n=", actor.max_step_limit,
           ", hit=", actor.hit_max_step_limit, ")")
+end
+
+###
+### FirstReturnActor
+###
+
+"""
+    FirstReturnActor <: AbstractActor
+
+Records and returns `true`, and the step number if the position is the origin.
+"""
+mutable struct FirstReturnActor <: AbstractActor
+    return_step_num::Int
+    returned::Bool
+end
+
+FirstReturnActor() = FirstReturnActor(0, false)
+
+init!(actor::FirstReturnActor) = (actor.returned = false; actor.return_step_num = 0; nothing)
+function act!(actor::FirstReturnActor, system)
+    iszero(get_position(system)) || return true
+    actor.returned = true
+    actor.return_step_num = get_nsteps(system)
+    return false
+end
+
+condition_satisfied(actor::FirstReturnActor) = actor.returned
+get_actor_value(actor::FirstReturnActor) = actor.return_step_num
+
+###
+### ActorSet
+###
+
+"""
+    struct ActorSet
+
+A set of several `Actors` to be applied sequentially.
+If one of the set returns `false`, then `ActorSet` immediately returns false.
+"""
+struct ActorSet{T <: Tuple} <: AbstractActor
+    actors::T
+end
+
+ActorSet(actors::AbstractActor...) = ActorSet((actors...,))
+ActorSet(actor::AbstractActor) = ActorSet((actor,))
+init!(actor_set::ActorSet) = foreach(actor -> init!(actor), actor_set.actors)
+
+function act!(actor_set::ActorSet, args...)
+    for actor in actor_set.actors
+        act!(actor, args...)::Bool || return false
+    end
+    return true
 end
 
 ###
@@ -211,33 +238,6 @@ function storing_nsteps_num_sites_visited_actor(times)
     value_types = (Int, Int)
     return StoringActor(times, funcs; value_types=value_types)
 end
-
-###
-### FirstReturnActor
-###
-
-"""
-    FirstReturnActor <: AbstractActor
-
-Records and returns `true`, and the step number if the position is the origin.
-"""
-mutable struct FirstReturnActor <: AbstractActor
-    return_step_num::Int
-    returned::Bool
-end
-
-FirstReturnActor() = FirstReturnActor(0, false)
-
-init!(actor::FirstReturnActor) = (actor.returned = false; actor.return_step_num = 0; nothing)
-function act!(actor::FirstReturnActor, system)
-    iszero(get_position(system)) || return true
-    actor.returned = true
-    actor.return_step_num = get_nsteps(system)
-    return false
-end
-
-condition_satisfied(actor::FirstReturnActor) = actor.returned
-get_actor_value(actor::FirstReturnActor) = actor.return_step_num
 
 ###
 ### ECDFActor
