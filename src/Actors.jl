@@ -2,24 +2,33 @@ module Actors
 
 using ..WalksBase: get_nsteps, get_time, get_position
 using ..Points: get_x
-import ..LatticeVars: init!
 using ..LatticeVars: get_num_sites_visited
+import ..LatticeVars: init!
 using EmpiricalCDFs
 import EmpiricalCDFs: get_data
 import Statistics
-
 export AbstractActor, act!, ActorSet, NullActor, StepLimitActor, FirstReturnActor
-export StoringActor, init!,  storing_position_actor, storing_num_sites_visited_actor,
-    get_times, get_values, get_stored_values,
-    storing_nsteps_actor, storing_nsteps_position_actor, storing_nsteps_num_sites_visited_actor
-export ECDFsActor, get_cdfs, ECDFActor, ECDFValueActor, get_cdf
+
+export StoringActor, init!, storing_position_actor,
+    storing_num_sites_visited_actor, get_times, get_ecdf_times, get_values,
+    get_stored_values, storing_nsteps_actor, storing_nsteps_position_actor,
+    storing_nsteps_num_sites_visited_actor
+
+export CountActor, get_count
+export ECDFsActor, get_cdfs, ECDFActor, ECDFValueActor, get_cdf, unpack, prune
 export SampleLoopActor, get_actor
+
+###
+### AbstractActor
+###
 
 abstract type AbstractActor end
 
 init!(_::AbstractActor) = nothing
 finalize!(_::AbstractActor) = nothing
 condition_satisfied(_::AbstractActor) = true
+# Following makes detecting bugs harder. Leave here to avoid temptation.
+# act!(_::AbstractActor, args...) = true
 
 ###
 ### NullActor
@@ -49,10 +58,43 @@ function act!(actor::StepLimitActor, latwalk)
 end
 
 init!(actor::StepLimitActor) = (actor.hit_max_step_limit = false; nothing)
+condition_satisfied(actor::StepLimitActor) = actor.hit_max_step_limit
 
 function Base.show(io::IO, actor::StepLimitActor)
     print(io, "StepLimitActor(n=", actor.max_step_limit,
           ", hit=", actor.hit_max_step_limit, ")")
+end
+
+###
+### CountActor
+###
+
+mutable struct Counter
+    c::Int
+end
+Counter() = Counter(0)
+init!(counter::Counter) = counter.c = 0
+increment(counter::Counter) = counter.c += 1
+get_count(counter::Counter) = counter.c
+
+struct CountActor{F} <: AbstractActor
+    counter::Counter
+    counting_func::F
+end
+
+function CountActor(child_actor::AbstractActor)
+    CountActor(Counter(), () -> condition_satisfied(child_actor))
+end
+
+for f in (:increment, :get_count, :init!)
+    @eval ($f)(actor::CountActor, args...) = ($f)(actor.counter, args...)
+end
+
+function act!(actor::CountActor, _system)
+    if actor.counting_func()
+        increment(actor.counter)
+    end
+    return true
 end
 
 ###
@@ -285,26 +327,48 @@ end
 ###
 
 # In some cases, we may not need, or even have, a child_actor
-struct ECDFsActor{T, F, CT} <: AbstractActor
-    ecdfs::T
+struct ECDFsActor{CDFT, F} <: AbstractActor
+    ecdfs_times::CDFT
     storing_func::F
-    child_actor::CT
+end
+
+get_ecdf_times(ea::ECDFsActor) = ea.ecdfs_times
+
+struct ECDFsTimes{TimeT, CDFT}
+    times::TimeT
+    ecdfs::CDFT
+end
+get_times(et::ECDFsTimes) = et.times
+get_cdfs(et::ECDFsTimes) = et.ecdfs
+unpack(et::ECDFsTimes) = [get_times(et) get_cdfs(et)]
+
+function prune(et::ECDFsTimes; f = x -> !isempty(x))
+    good_inds = unique(getindex.(findall(f, et.ecdfs),1))
+    new_times = et.times[good_inds]
+    new_ecdfs = et.ecdfs[good_inds,:]
+    return ECDFsTimes(new_times, new_ecdfs)
 end
 
 function Base.show(io::IO, actor::ECDFsActor)
-    print(io, "ECDFsActor{", typeof(actor.ecdfs), ", F, ",
-          typeof(actor.child_actor), "}")
+    print(io, "ECDFsActor{", typeof(get_ecdf_times(actor)), ", Func, ")
+    print(io, "}")
 end
 
 act!(actor::ECDFsActor, system) = (actor.storing_func(system); true)
-get_cdfs(ea::ECDFsActor) = ea.ecdfs
-init!(actor::ECDFsActor) = (empty!(actor); nothing)
+get_cdfs(ea::ECDFsActor) = get_cdfs(get_ecdf_times(ea))
+
+function init!(actor::ECDFsActor)
+    empty!(actor)
+    nothing
+end
+
 finalize!(actor::ECDFsActor) = (sort!(actor); nothing)
 
 # TODO: Fix indexing. Time should not be in index value 1
 function ECDFsActor(storing_actor::StoringActor)
     times = get_times(storing_actor)
     ecdfs = [EmpiricalCDF{eltype(storing_actor[j])}() for i in 1:length(times), j in 2:length(storing_actor)]
+    ecdfs_times = ECDFsTimes(times, ecdfs)
     storing_func = function(_...)
         for j in 2:length(storing_actor)
             for i in 1:length(storing_actor[j])
@@ -313,12 +377,17 @@ function ECDFsActor(storing_actor::StoringActor)
         end
         return true
     end
-    return ECDFsActor(ecdfs, storing_func, storing_actor)
+    return ECDFsActor(ecdfs_times, storing_func)
 end
+
+
+get_times(a::ECDFsActor) = get_times(get_ecdf_times(a))
+unpack(a::ECDFsActor) = unpack(get_ecdf_times(a))
 
 for f in (:sort!, :empty!)
     @eval function Base.$(f)(actor::ECDFsActor)
-        for cdf in actor.ecdfs
+        ecdfs = get_cdfs(get_ecdf_times(actor))
+        for cdf in ecdfs
            ($f)(cdf)
         end
         return actor
@@ -331,7 +400,7 @@ for f in (:length, :size, :minimum, :maximum, :extrema, :issorted, :iterate, :ge
           :lastindex, :firstindex, :eltype, :view)
     @eval begin
         Base.$(f)(cdf::ECDFActor, args...) = $(f)(cdf.ecdf, args...)
-        Base.$(f)(cdf::ECDFsActor, ind, args...) = $(f)(cdf.ecdfs[ind], args...)
+#        Base.$(f)(cdf::ECDFsActor, ind, args...) = $(f)(cdf.ecdfs[ind], args...)
     end
 end
 
