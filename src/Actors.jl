@@ -16,7 +16,7 @@ export StoringActor, init!, storing_position_actor,
 
 export CountActor, get_count
 export ECDFsActor, get_cdfs, ECDFActor, ECDFValueActor, get_cdf, unpack, prune
-export SampleLoopActor, get_actor
+export SampleLoopActor, get_actor, ProgressIter
 
 ###
 ### AbstractActor
@@ -424,6 +424,10 @@ end
 # abstract type AbstractSampleLoopActor <: AbstractActor
 # end
 
+struct ProgressIter{IterT}
+    iter::IterT
+end
+ProgressIter(n::Integer) = ProgressIter(1:n)
 
 struct SampleLoopActor{Iter, ActorT} <: AbstractActor
     iter::Iter

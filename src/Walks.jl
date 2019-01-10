@@ -4,6 +4,7 @@ import ..WalksBase: get_position, get_x, get_y, get_z, get_time, get_nsteps, ste
 import ..LatticeVars.init!
 using ..WalksBase
 using ..Actors
+using ProgressMeter
 
 export walk!, WalkPlan, trial!
 
@@ -40,6 +41,13 @@ end
 
 function trial_body!(walk_plan::WalkPlan, sample_loop::SampleLoopActor, iter)
     for i in iter
+        sample!(walk_plan, sample_loop.actor)
+    end
+    return nothing
+end
+
+function trial_body!(walk_plan::WalkPlan, sample_loop::SampleLoopActor, progress_iter::ProgressIter)
+    @showprogress 1 "Doing trials..." for i in progress_iter.iter
         sample!(walk_plan, sample_loop.actor)
     end
     return nothing
