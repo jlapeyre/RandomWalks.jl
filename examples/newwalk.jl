@@ -42,9 +42,11 @@ end
 function cdfrep(ptcdfs, ntrials)
     cdfs = get_cdfs(ptcdfs)
     times = get_times(ptcdfs)
-    DataFrame([times, length.(cdfs[:,1]), length.(cdfs[:,1]) ./ ntrials,  maximum.(cdfs[:,1]), extrema.(cdfs[:,2]),
-               median.(cdfs[:,2]), mean.(cdfs[:,2])],
-              [:time, :ncounts, :survp, :max_steps, :minmax_sites, :median_nsites, :mean_nsites])
+    nsites = cdfs[:,2]
+    nsteps = cdfs[:,1]
+    DataFrame([times, length.(nsteps), length.(nsteps) ./ ntrials,  maximum.(nsteps), extrema.(nsites),
+               median.(nsites), mean.(nsites), std.(nsites)],
+              [:time, :ncounts, :survp, :max_steps, :minmax_sites, :median_nsites, :mean_nsites, :std_nsites])
 end
 
 function vstrials(; lambda = 1e2, dimension = 2)
