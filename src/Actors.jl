@@ -421,10 +421,11 @@ end
 ### SampleLoopActor
 ###
 
-abstract type AbstractSampleLoopActor <: AbstractActor
-end
+# abstract type AbstractSampleLoopActor <: AbstractActor
+# end
 
-struct SampleLoopActor{Iter, ActorT} <: AbstractSampleLoopActor
+
+struct SampleLoopActor{Iter, ActorT} <: AbstractActor
     iter::Iter
     actor::ActorT
 end

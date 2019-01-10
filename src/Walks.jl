@@ -38,8 +38,8 @@ function sample!(walk_plan::WalkPlan, trial_actor)
     return nothing
 end
 
-function trial_body!(walk_plan::WalkPlan, sample_loop::SampleLoopActor)
-    for i in sample_loop.iter
+function trial_body!(walk_plan::WalkPlan, sample_loop::SampleLoopActor, iter)
+    for i in iter
         sample!(walk_plan, sample_loop.actor)
     end
     return nothing
@@ -48,7 +48,7 @@ end
 function trial!(walk_plan::WalkPlan, sample_loop::SampleLoopActor)
     trial_actor = sample_loop.actor
     Actors.init!(trial_actor)
-    trial_body!(walk_plan, sample_loop)
+    trial_body!(walk_plan, sample_loop, sample_loop.iter)
     Actors.finalize!(trial_actor)
     return nothing
 end
