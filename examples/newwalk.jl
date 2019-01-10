@@ -16,7 +16,7 @@ using DataFrames
 function getcdfs(; dimension = 2, ntrials = 10^3, nsteps = 10^3, lambda = 1e2)
 
     lattice_rates = LatticeVar{dimension}(Exponential(lambda))
-    waiting_times = LatticeVarParam{2}(Pareto(0.5))
+    waiting_times = LatticeVarParam{dimension}(Pareto(0.5))
     quenched_lattice = Lattice(waiting_times, lattice_rates)
 
     walk = MortalWalk(WalkB{dimension}())
