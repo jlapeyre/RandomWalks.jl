@@ -12,15 +12,15 @@ using Distributions, BenchmarkTools
 using EmpiricalCDFs
 using DataFrames
 
-function getcdfs(; ntrials = 10^3, nsteps = 10^3, lambda = 1e2)
+function getcdfs(; dimension = 2, ntrials = 10^3, nsteps = 10^3, lambda = 1e2)
 
 #    ntrials = 10^3; nsteps = 10^3; lambda = 1e2
 
-    lattice_rates = LatticeVar{2}(Exponential(lambda))
+    lattice_rates = LatticeVar{dimension}(Exponential(lambda))
     waiting_times = LatticeVarParam{2}(Pareto(0.5))
     quenched_lattice = Lattice(waiting_times, lattice_rates)
 
-    walk = MortalWalk(WalkB{2}())
+    walk = MortalWalk(WalkB{dimension}())
     lattice_walk = LatticeWalk(quenched_lattice, walk)
 
     store_range = 1:.3:8.5
