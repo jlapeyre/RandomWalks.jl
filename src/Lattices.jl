@@ -43,7 +43,4 @@ function Base.show(io::IO, lattice::Lattice{N}) where N
     end
 end
 
-# const QuenchedLattice{N, T} where {N, T <: Tuple{<: = Lattice{
-
-
 end
