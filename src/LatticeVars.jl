@@ -119,7 +119,7 @@ julia> lv[0,1]
 ```
 """
 function LatticeVar{N}(dist::Distribution) where N
-    vals = LatticeVal{N}()
+    vals = LatticeVal{N, eltype(dist)}()
     return LatticeVar{N, typeof(dist), typeof(vals)}(vals, dist)
 end
 LatticeVar(dist::Distribution) = LatticeVar{1}(dist)

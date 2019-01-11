@@ -9,7 +9,7 @@ import Distributions
 export AbstractWalkGeneral, AbstractWalk, WalkB, WalkF, WalkOpts, Mortal, MortalOpts,
     MortalWalk, MortalWalkStatus,
     step!, step_increment!, get_position, get_x, get_y, get_z, set_position!, addto_time!, get_nsteps,
-    incr_nsteps!, set_time!, get_time, set_status!
+    incr_nsteps!, set_time!, get_time, set_status!, try_step_increment
 
 export walk_opts, Continuous, ContinuousOpts, ContinuousWalk
 
@@ -88,10 +88,7 @@ function WalkB(p=Point(zero(_default_walk_coord_type)); time = zero(_default_wal
     return WalkB{length(p), typeof(time), typeof(p)}(time, p, nsteps)
 end
 
-function WalkB{N, PosElT, TimeT}() where {N, PosElT, TimeT}
-    return WalkB(zero(Point{N, PosElT}); time = zero(TimeT), nsteps = zero(Int))
-end
-
+WalkB{N, PosElT, TimeT}() where {N, PosElT, TimeT} = WalkB(zero(Point{N, PosElT}); time = zero(TimeT), nsteps = zero(Int))
 WalkB{N, PosElT}() where {N, PosElT} = WalkB{N, PosElT, _default_walk_time_type}()
 WalkB{N}() where {N} = WalkB{N, _default_walk_coord_type}()
 
@@ -172,7 +169,14 @@ for f in (:get_status, :set_status!)
     @eval ($f)(w::WalkF, args...) = ($f)(w.opts, args...)
 end
 
-# Why does this fail with  V1 --> <:Any
+# TODO: try removing extra params
+function try_step_increment(walkf::WalkF{N, WalkB{N, V1, PosT}, <:Any}) where {N, PosT, V1}
+    return rand(walkf.opts.stepsample, UnitVector{PosT})
+end
+
+try_step_increment(walk::WalkB{N, V1, PosT}) where {N, PosT, V1} = rand(UnitVector{PosT})
+
+# FIXME: Why does this fail with  V1 --> <:Any
 function step_increment!(walkf::WalkF{N, WalkB{N, V1, PosT}, <:Any}) where {N, PosT, V1}
      return addto_position!(walkf.walk, rand(walkf.opts.stepsample, UnitVector{PosT}))
 end
@@ -184,10 +188,6 @@ ContinuousWalk(w = WalkB(), dist=Distributions.Normal()) = WalkF(w, stepdisplace
 function step_increment!(walkf::WalkF{N, WalkB{N, V1, V2}, <:ContinuousOpts}) where {N, V1, V2}
       return addto_position!(walkf.walk, rand(walkf.opts.stepdisplacement.dist))
 end
-
-# function step_increment!(walkf::WalkF{N, WalkB{N, V1, V2}, <:ContinuousOpts}) where {N, V1, V2}
-#       return addto_position!(walkf.walk, rand(walkf.opts.stepdisplacement.dist))
-# end
 
 for f in (:get_position, :set_position!, :addto_position!, :get_time, :set_time!, :get_nsteps,
           :set_nsteps!, :incr_nsteps!, :addto_time!, :get_x)

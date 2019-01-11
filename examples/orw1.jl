@@ -57,7 +57,9 @@ x = get_data(ecdf);
 x ./= sqrt(nsteps);
 
 # Test that the standard deviation and mean are as expected
-println("mean = ", mean(ecdf), ". standard deviation = ", std(ecdf));
+
+## The mean should be near 0 and the standard deviation near 1
+@show mean(ecdf), std(ecdf);
 
 # We test the above results with a generous tolerance.
 tolerance = 1e-3;

@@ -1,7 +1,7 @@
 module Actors
 
 using ..WalksBase: get_nsteps, get_time, get_position
-using ..Points: get_x
+using ..Points: get_x, norm_squared
 using ..LatticeVars: get_num_sites_visited
 import ..LatticeVars: init!
 using EmpiricalCDFs
@@ -11,10 +11,10 @@ export AbstractActor, act!, ActorSet, NullActor, StepLimitActor, ErrorOnExitActo
     get_actor_value
 export ActorExitException
 
-export StoringActor, init!, storing_position_actor,
+export StoredValues, StoringActor, init!, storing_position_actor,
     storing_num_sites_visited_actor, get_times, get_ecdf_times, get_values,
     get_stored_values, storing_nsteps_actor, storing_nsteps_position_actor,
-    storing_nsteps_num_sites_visited_actor
+    storing_nsteps_num_sites_visited_actor, storing_msd_actor
 
 export CountActor, get_count
 export ECDFsActor, get_cdfs, ECDFActor, ECDFValueActor, get_cdf, unpack, prune
@@ -184,23 +184,26 @@ end
 ### StoredValues
 ###
 
+"""
+    mutable struct StoredValues{T, X}
+
+Stores the data for `StoringActor`
+"""
 mutable struct StoredValues{T, X}
     times::T
     values::X
     current_index::Int
 end
 
-function Base.getindex(sv::StoredValues, ind1, ind2)
-    return sv.values[ind2][ind1]
-end
+Base.getindex(sv::StoredValues, ind1, ind2) = sv.values[ind2][ind1]
 
-Base.show(io::IO, sv::StoredValues) = Base.show(io, MIME("text/plain"), sv)
-
-function Base.show(io::IO, m::typeof(MIME("text/plain")), sv::StoredValues{T}) where T
-                   println(io, "StoredValues{times_type=$T}(current_index=", sv.current_index, ")")
-                   maxind = length(sv.values[1])
-    show(io, m, [sv.times[1:maxind] (x[1:maxind] for x in sv.values)... ])
-end
+# FIXME: used to work
+# Base.show(io::IO, sv::StoredValues) = Base.show(io, MIME("text/plain"), sv)
+# function Base.show(io::IO, m::typeof(MIME("text/plain")), sv::StoredValues{T}) where T
+#                    println(io, "StoredValues{times_type=$T}(current_index=", sv.current_index, ")")
+#                    maxind = length(sv.values[1])
+#     show(io, m, [sv.times[1:maxind] (x[1:maxind] for x in sv.values)... ])
+# end
 
 get_target_time(sv::StoredValues) = sv.times[sv.current_index]
 increment_current_index(sv::StoredValues) = sv.current_index += 1
@@ -211,6 +214,7 @@ get_values(sv::StoredValues) = sv.values
 get_times(sv::StoredValues) = sv.times
 
 Base.empty!(sv::StoredValues) = empty!(sv.values)
+
 function Base.empty!(sv::StoredValues{<:Any, <:Tuple})
     for v in sv.values
         empty!(v)
@@ -244,11 +248,12 @@ StoringActor(times, storing_func, value_types) = StoringActor(StoredValues(times
 StoringActor(times, storing_func::Tuple, value_types::Tuple) = StoringActor(StoredValues(times; value_types=value_types), storing_func)
 
 function act!(actor::StoringActor, system)
-    get_current_index(actor.stored_values) > lastindex(actor.stored_values) && return false # terminate walk
-    while get_time(system) >= get_target_time(actor.stored_values)
-        push!(actor.stored_values.values, actor.storing_func(system))
-        increment_current_index(actor.stored_values)
-        get_current_index(actor.stored_values) > lastindex(actor.stored_values) && return false # terminate walk
+    stored_values = actor.stored_values
+    get_current_index(stored_values) > lastindex(stored_values) && return false # terminate walk
+    while get_time(system) >= get_target_time(stored_values)
+        push!(stored_values.values, actor.storing_func(system))
+        increment_current_index(stored_values)
+        get_current_index(stored_values) > lastindex(stored_values) && return false # terminate walk
     end
     return true
 end
@@ -316,6 +321,11 @@ function storing_nsteps_num_sites_visited_actor(times)
     funcs = ((system) -> get_nsteps(system), (system) -> get_num_sites_visited(system))
     value_types = (Int, Int)
     return StoringActor(times, funcs; value_types=value_types)
+end
+
+function storing_msd_actor(times)
+    funcs = ((system) -> norm_squared(get_position(system)), )
+    return StoringActor(times, funcs; value_types = (Float64,))
 end
 
 ###

@@ -45,7 +45,6 @@ norm_squared(p::Point) = sum(x -> x^2, p.coords)
 Base.zero(p::Point) = Base.zero(typeof(p))
 Base.zero(::Type{Point{N, T}}) where {T, N} = Point{N, T}()
 Base.iszero(p::Point{N, T}) where {N, T} = p == Point{N, T}()
-
 Base.show(io::IO, p::Point{N, T}) where {T, N}  = print(io, "Point{$N, $T}", get_coords(p))
 Base.show(io::IO, p::Point{1, T}) where {T}  = print(io, "Point{1, $T}(", get_coords(p)[1], ")")
 

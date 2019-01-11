@@ -31,7 +31,7 @@ plan_actor_set = ActorSet(StepLimitActor(10^9), first_return_actor);
 # Note that we have used `first_return_actor` in two places.
 # First in the generation of the sample, and again in collecting data after each sample.
 
-# Now let's assume the tail of the first-return distribution follows a power law
+# Now let's assume (correctly) the tail of the first-return distribution follows a power law
 # and verify that the exponent is close to $-3/2$.
 using MaximumLikelihoodPower
 mle(ecdf_actor[end-200:end]) # mle returns the estimate and error estimate
@@ -41,13 +41,12 @@ mle(ecdf_actor[end-200:end]) # mle returns the estimate and error estimate
 # There is a potential problem with the example above.
 # `StepLimitActor` breaks the sample loop silently, as it should.
 # In the case at hand, with only `10^4` samples, the chance of one walker making $10^{9}$ steps before
-# returning is very small. (How small ?).
+# returning is very small. (How small ?)
 # However, if we want to be sure that none of the walks were cut short,
 # We can replace `StepLimitActor(10^9)` above by `ErrorOnExitActor(StepLimitActor(10^9)`.
 # This replaces the silent exit with a fatal error.
 
-# Another option is to count the number of times the step limit was reached
-# using `CountActor`.
+# Another option is to use `CountActor` to count the number of times the step limit was reached.
 
 step_limit_actor = StepLimitActor(10^6)
 plan_actor_set = ActorSet(step_limit_actor, first_return_actor);

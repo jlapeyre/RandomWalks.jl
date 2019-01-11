@@ -5,4 +5,11 @@
 [![Codecov](https://codecov.io/gh/jlapeyre/RandomWalks.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jlapeyre/RandomWalks.jl)
 [![Coveralls](https://coveralls.io/repos/github/jlapeyre/RandomWalks.jl/badge.svg?branch=master)](https://coveralls.io/github/jlapeyre/RandomWalks.jl?branch=master)
 
-Highly configurable random walk framework.
+Modular, composable, random-walk framework.
+
+Modularity! It's the future of manufacturing!
+
+Are those *under construction* icons still in vogue ?
+
+
+

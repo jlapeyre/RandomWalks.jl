@@ -57,7 +57,7 @@ function step!(lattice_walk::LatticeWalk{<:Any, <:Any})
     return result
 end
 
-function step!(walk::WalkB, lattice::AbstractLattice)
+function step!(walk::WalkB, lattice::TrapsLattice)
     pos = get_position(walk)
     jump_time = lattice[1, pos]
     addto_time!(walk, jump_time)
@@ -72,7 +72,7 @@ function step!(lattice_walk::LatticeWalk{<:Any, <:MortalWalk})
     return result
 end
 
-function step!(walk::MortalWalk, lattice::AbstractLattice)
+function step!(walk::MortalWalk, lattice::TrapsLattice)
     pos = get_position(walk)
     jump_time = lattice[1, pos]
     decay_time = lattice[2, pos]
@@ -84,6 +84,20 @@ function step!(walk::MortalWalk, lattice::AbstractLattice)
         step!(walk)
         return true
     end
+end
+
+#function step!(walk::WalkF{X,Y,Z}, lattice::SitePercolationLattice) where {X,Y,Z}
+function step!(walk::WalkB, lattice::SitePercolationLattice)
+    disp = try_step_increment(walk)
+    @show disp
+    newpos = get_position(walk) + disp
+    @show newpos
+    site_state = lattice[1, newpos]
+    @show site_state
+    if site_state
+        set_position!(walk, newpos)
+    end
+    return true
 end
 
 end  # module LatticeWalks

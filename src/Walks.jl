@@ -40,7 +40,7 @@ function sample!(walk_plan::WalkPlan, trial_actor)
 end
 
 function trial_body!(walk_plan::WalkPlan, sample_loop::SampleLoopActor, iter)
-    for i in iter
+    for _ in iter
         sample!(walk_plan, sample_loop.actor)
     end
     return nothing
