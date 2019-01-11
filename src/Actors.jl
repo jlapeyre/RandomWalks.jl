@@ -7,7 +7,9 @@ import ..LatticeVars: init!
 using EmpiricalCDFs
 import EmpiricalCDFs: get_data
 import Statistics
-export AbstractActor, act!, ActorSet, NullActor, StepLimitActor, FirstReturnActor
+export AbstractActor, act!, ActorSet, NullActor, StepLimitActor, ErrorOnExitActor, FirstReturnActor,
+    get_actor_value
+export ActorExitException
 
 export StoringActor, init!, storing_position_actor,
     storing_num_sites_visited_actor, get_times, get_ecdf_times, get_values,
@@ -66,6 +68,33 @@ function Base.show(io::IO, actor::StepLimitActor)
 end
 
 ###
+### ErrorOnExitActor
+###
+
+struct ActorExitException{T} <: Exception
+    actor::T
+    msg::String
+end
+
+ActorExitException(actor::T) where {T} = ActorExitException(actor, "actor of type $T exited")
+Base.showerror(io::IO, e::ActorExitException) = print(io, e.msg)
+
+struct ErrorOnExitActor{T <: AbstractActor} <: AbstractActor
+    child_actor::T
+end
+
+for f  in (:init!, :condition_satisfied)
+    @eval ($f)(actor::ErrorOnExitActor, args...) = ($f)(actor.child_actor, args...)
+end
+
+function act!(actor::ErrorOnExitActor, arg)
+    if ! act!(actor.child_actor, arg)
+        throw(ActorExitException(actor.child_actor))
+    end
+    return true
+end
+
+###
 ### CountActor
 ###
 
@@ -89,6 +118,7 @@ end
 for f in (:increment, :get_count, :init!)
     @eval ($f)(actor::CountActor, args...) = ($f)(actor.counter, args...)
 end
+get_actor_value(actor::CountActor) = get_count(actor.counter)
 
 function act!(actor::CountActor, _system)
     if actor.counting_func()
@@ -108,20 +138,21 @@ Records and returns `true`, and the step number if the position is the origin.
 """
 mutable struct FirstReturnActor <: AbstractActor
     return_step_num::Int
-    returned::Bool
+    has_walker_returned::Bool
 end
 
 FirstReturnActor() = FirstReturnActor(0, false)
 
-init!(actor::FirstReturnActor) = (actor.returned = false; actor.return_step_num = 0; nothing)
+init!(actor::FirstReturnActor) = (actor.has_walker_returned = false; actor.return_step_num = 0; nothing)
+
 function act!(actor::FirstReturnActor, system)
     iszero(get_position(system)) || return true
-    actor.returned = true
+    actor.has_walker_returned = true
     actor.return_step_num = get_nsteps(system)
     return false
 end
 
-condition_satisfied(actor::FirstReturnActor) = actor.returned
+condition_satisfied(actor::FirstReturnActor) = actor.has_walker_returned
 get_actor_value(actor::FirstReturnActor) = actor.return_step_num
 
 ###

@@ -21,8 +21,14 @@ struct WalkParams
     alpha::Float64
 end
 
-function Base.print(wp::WalkParams)
-    println("dimension = ", wp.dimension)
+WalkParams() = WalkParams(0,0,0,0.0,0.0)
+
+function Base.print(io::IO, wp::WalkParams)
+    println(io, "dimension = ", wp.dimension)
+    println(io, "ntrials = ", wp.ntrials)
+    println(io, "lambda = ", wp.lambda)
+    print(io, "alpha = ", wp.alpha)
+#    println(io, "nsteps = ", wp.nsteps)
 end
 
 function getcdfs(; dimension = 2, ntrials = 10^3, nsteps = 10^3, lambda = 1e2)
@@ -42,8 +48,12 @@ function getcdfs(; dimension = 2, ntrials = 10^3, nsteps = 10^3, lambda = 1e2)
     walk = MortalWalk(WalkB{dimension}())
     lattice_walk = LatticeWalk(quenched_lattice, walk)
 
-    log_store_range = 1:.3:8.5
+    log_store_range = 1:0.5:12.0
+
     storing_actor = storing_nsteps_num_sites_visited_actor(logrange(log_store_range))
+#    storing_actor = storing_num_sites_visited_actor(logrange(log_store_range))
+#    storing_actor2 = storing_num_sites_visited_actor(logrange(log_store_range))
+
     step_limit_actor = StepLimitActor(nsteps)
     theactors = ActorSet(step_limit_actor, storing_actor)
     walk_plan = WalkPlan(lattice_walk, theactors)
@@ -64,12 +74,12 @@ function cdfrep(ptcdfs, ntrials)
     times = get_times(ptcdfs)
     nsites = cdfs[:,2]
     nsteps = cdfs[:,1]
-    DataFrame([times, length.(nsteps), length.(nsteps) ./ ntrials,  maximum.(nsteps), extrema.(nsites),
+    DataFrame([times, length.(nsteps), length.(nsteps) ./ ntrials,  median.(nsteps), extrema.(nsites),
                median.(nsites), mean.(nsites), std.(nsites)],
-              [:time, :ncounts, :survp, :max_steps, :minmax_sites, :median_nsites, :mean_nsites, :std_nsites])
+              [:time, :ncounts, :survp, :median_steps, :minmax_sites, :median_nsites, :mean_nsites, :std_nsites])
 end
 
-function vstrials(; dimension = 2, nsteps = 10^7, lambda = 1e2)
+function vstrials(; dimension = 2, nsteps = 10^11, lambda = 1e3)
     for nexp in 1:7
         for fac in (1, 3, 6)
             (tcdfs, ntrials, trial_actors, wparams) = getcdfs(;ntrials = fac * 10^nexp,
