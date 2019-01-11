@@ -114,13 +114,6 @@ function WalkOpts(; status_type = Nothing(), stepsample = Unbiased(), stepdispla
     return WalkOpts(status_type, stepsample, stepdisplacement)
 end
 
-mutable struct Mortal
-    alive::Bool
-end
-Mortal() = Mortal(true)
-get_status(s::Mortal) = w.alive
-set_status!(s::Mortal, state) = s.alive = state
-
 # StepDispT
 struct NearestNeighbor
 end
@@ -155,6 +148,13 @@ function WalkF(w::AbstractWalk{N} = WalkB{1}(); kwargs...) where {N}
     return WalkF{N, typeof(w), typeof(wo)}(w, wo)
 end
 
+mutable struct Mortal
+    alive::Bool
+end
+
+Mortal() = Mortal(true)
+get_status(s::Mortal) = w.alive
+set_status!(s::Mortal, state) = s.alive = state
 const MortalOpts = WalkOpts{<:Mortal, <:Any, <:Any}
 const MortalWalk = WalkF{<:Any, <:Any, <:MortalOpts}
 MortalOpts(opts::WalkOpts) = WalkOpts(Mortal(), opts.stepsample, opts.stepdisplacement)
