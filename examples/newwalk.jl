@@ -61,9 +61,7 @@ function getcdfs(; dimension = 2, ntrials = 10^3, nsteps = 10^3, lambda = 1e2)
     max_step_counter = CountActor(step_limit_actor)
     trial_actors = ActorSet(max_step_counter, ecdfs_actor)
     @time trial!(walk_plan, SampleLoopActor(ProgressIter(ntrials), trial_actors));
-    if get_count(max_step_counter) > 0
-        @error("Hit step limit " * string(get_count(max_step_counter)) * " times.")
-    end
+    check_counter(max_step_counter, "Hit step limit")
     tcdfs = get_ecdf_times(ecdfs_actor);
     ptcdfs = prune(tcdfs)
     return (ptcdfs, ntrials, trial_actors, wparams)
@@ -79,7 +77,7 @@ function cdfrep(ptcdfs, ntrials)
               [:time, :ncounts, :survp, :median_steps, :minmax_sites, :median_nsites, :mean_nsites, :std_nsites])
 end
 
-function vstrials(; dimension = 2, nsteps = 10^11, lambda = 1e3)
+function vstrials(; dimension = 2, nsteps = 10^2, lambda = 1e3)
     for nexp in 1:7
         for fac in (1, 3, 6)
             (tcdfs, ntrials, trial_actors, wparams) = getcdfs(;ntrials = fac * 10^nexp,

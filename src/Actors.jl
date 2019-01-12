@@ -9,6 +9,7 @@ import EmpiricalCDFs: get_data
 import Statistics
 export AbstractActor, act!, ActorSet, NullActor, StepLimitActor, ErrorOnExitActor, FirstReturnActor,
     get_actor_value
+
 export ActorExitException
 
 export StoredValues, StoringActor, init!, storing_position_actor,
@@ -16,7 +17,7 @@ export StoredValues, StoringActor, init!, storing_position_actor,
     get_stored_values, storing_nsteps_actor, storing_nsteps_position_actor,
     storing_nsteps_num_sites_visited_actor, storing_msd_actor
 
-export CountActor, get_count
+export CountActor, get_count, CountLimitException, check_counter
 export ECDFsActor, get_cdfs, ECDFActor, ECDFValueActor, get_cdf, unpack, prune
 export SampleLoopActor, get_actor, ProgressIter
 
@@ -123,6 +124,24 @@ get_actor_value(actor::CountActor) = get_count(actor.counter)
 function act!(actor::CountActor, _system)
     if actor.counting_func()
         increment(actor.counter)
+    end
+    return true
+end
+
+###
+### CountLimitException
+###
+
+struct CountLimitException <: Exception
+    msg::String
+end
+
+Base.showerror(io::IO, e::CountLimitException) = print(io, e.msg)
+
+function check_counter(actor::CountActor, msg=""; max_count = 0)
+    if get_actor_value(actor) > max_count
+        throw(CountLimitException(string(msg, " CountActor made ", get_actor_value(actor), " counts. ",
+                                         "Maximum allowed $max_count")))
     end
     return true
 end
